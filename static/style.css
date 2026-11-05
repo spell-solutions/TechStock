@@ -7,8 +7,9 @@
 
 body {
     font-family: Arial, sans-serif;
-    background: #f3f5f9;
-    color: #263247;
+    background: #e1f0ed;
+    color: #024d60
+;
 }
 
 /* MENU LATERAL */
@@ -16,7 +17,7 @@ body {
 .sidebar {
     width: 245px;
     height: 100vh;
-    background: #172b4d;
+    background:#024d60;
     color: white;
     position: fixed;
     padding: 30px 20px;
@@ -321,18 +322,26 @@ form button:hover,
     background: #172b4d;
 }
 
-.botao-limpar {
-    display: inline-block;
-    padding: 10px 16px;
-    background-color: #e9edf3;
-    color: #263b59;
-    text-decoration: none;
-    border-radius: 6px;
-    font-size: 14px;
-    font-weight: 600;
-    white-space: nowrap;
+.botoes-formulario {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 20px;
 }
 
-.botao-limpar:hover {
-    background-color: #dce3ed;
+.botao-secundario {
+    background: #e8edf5;
+    color: #024d60;
+}
+
+.botao-secundario:hover {
+    background: #d5e0e8;
+}
+
+.mensagem {
+    padding: 12px;
+    margin-bottom: 15px;
+    border-radius: 6px;
+    background: #fee2e2;
+    color: #b91c1c;
 }
