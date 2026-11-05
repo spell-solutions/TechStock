@@ -1,0 +1,198 @@
+
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TechStock Manager</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+
+    <aside class="sidebar">
+        <h2>TechStock</h2>
+        <p class="subtitulo">MANAGER</p>
+
+        <nav>
+            <a href="{{ url_for('inicio') }}" class="ativo">Painel inicial</a>
+            <a href="{{ url_for('movimentacoes') }}">Movimentações</a>
+             <a href="{{ url_for('relatorios') }}">Relatórios</a>
+        </nav>
+
+        <div class="rodape-menu">
+            Sistema de Gestão de Inventário
+        </div>
+    </aside>
+
+    <main class="conteudo">
+
+        <header>
+            <div>
+                <h1>Painel de Operações</h1>
+                <p>Bem-vinda ao TechStock Manager!</p>
+            </div>
+            <span class="status">Sistema online</span>
+        </header>
+
+        <section class="indicadores">
+
+            <div class="cartao">
+                <p>Total de produtos</p>
+                <h2>{{ total_produtos }}</h2>
+                <span>Produtos cadastrados</span>
+            </div>
+
+            <div class="cartao">
+                <p>Unidades em estoque</p>
+                <h2>{{ total_unidades }}</h2>
+                <span>Quantidade total</span>
+            </div>
+
+            <div class="cartao">
+                <p>Categorias</p>
+                <h2>{{ total_categorias }}</h2>
+                <span>Grupos cadastrados</span>
+            </div>
+
+            <div class="cartao alerta">
+                <p>Estoque baixo</p>
+                <h2>{{ produtos_baixos|length }}</h2>
+                <span>Precisam de atenção</span>
+            </div>
+
+        </section>
+
+        <section class="painel-alertas">
+            <h2>Alertas de reposição</h2>
+
+            {% if produtos_baixos %}
+                {% for produto in produtos_baixos %}
+                    <div class="aviso">
+                        <strong>{{ produto.nome }}</strong>
+                        <span>
+                            Estoque: {{ produto.quantidade_estoque }}
+                            | Mínimo: {{ produto.estoque_minimo }}
+                        </span>
+                        <span class="perigo">Reposição necessária</span>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p>Todos os produtos estão com estoque adequado.</p>
+            {% endif %}
+        </section>
+
+        <section class="painel-produtos">
+
+            <div class="titulo-tabela">
+                <div>
+                    <h2>Inventário de produtos</h2>
+                    <p>Lista completa dos produtos cadastrados.</p>
+                </div>
+<form method="GET" action="{{ url_for('inicio') }}"
+      style="display: flex; align-items: center; gap: 8px;">
+
+    <input
+        type="text"
+        name="busca"
+        placeholder="Pesquisar por SKU, nome ou fabricante..."
+        value="{{ busca }}"
+        style="padding: 10px; border: 1px solid #ccc; border-radius: 6px;"
+    >
+
+    <button type="submit" class="botao-novo">
+        Pesquisar
+    </button>
+
+    <a href="{{ url_for('inicio') }}" class="botao-limpar">
+        Limpar
+    </a>
+
+</form>
+                
+                <a href="{{ url_for('novo_produto') }}"
+                   class="botao-novo">
+                    + Novo produto
+                </a>
+
+                <span class="quantidade">
+                    {{ total_produtos }} produtos
+                </span>
+            </div>
+
+            <div class="tabela-responsiva">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>SKU</th>
+                            <th>Produto</th>
+                            <th>Fabricante</th>
+                            <th>Categoria</th>
+                            <th>Fornecedor</th>
+                            <th>Preço</th>
+                            <th>Estoque</th>
+                            <th>Situação</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for produto in produtos %}
+                        <tr>
+                            <td>{{ produto.sku }}</td>
+                            <td><strong>{{ produto.nome }}</strong></td>
+                            <td>{{ produto.fabricante }}</td>
+                            <td>{{ produto.categoria }}</td>
+                            <td>{{ produto.fornecedor }}</td>
+                            <td>R$ {{ "%.2f"|format(produto.preco_venda) }}</td>
+                            <td>{{ produto.quantidade_estoque }}</td>
+
+                            <td>
+                                {% if produto.quantidade_estoque < produto.estoque_minimo %}
+                                    <span class="badge-perigo">Estoque baixo</span>
+                                {% else %}
+                                    <span class="badge-normal">Normal</span>
+                                {% endif %}
+                            </td>
+ 
+<td>
+    <a href="{{ url_for('editar_produto', produto_id=produto.id) }}"
+   class="botao-novo"
+   style="display: inline-block; margin-right: 5px;">
+    Editar
+</a>
+
+    <form method="POST"
+          action="{{ url_for('desativar_produto', produto_id=produto.id) }}"
+          onsubmit="return confirm('Deseja realmente desativar este produto?');"
+          style="display: inline;">
+
+        <button type="submit">Desativar</button>
+
+    </form>
+</td>
+
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="9">
+                                Nenhum produto cadastrado.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+        </section>
+
+        <footer>
+            TechStock Manager - Sistema de Gestão de Inventário
+        </footer>
+
+    </main>
+
+</body>
+</html>

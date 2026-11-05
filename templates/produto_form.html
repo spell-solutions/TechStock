@@ -1,0 +1,111 @@
+
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cadastrar Produto - TechStock</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+
+<main class="conteudo" style="margin-left: 0;">
+
+    <h1>Cadastrar Novo Produto</h1>
+    <p>Preencha os dados do produto abaixo.</p>
+
+    {% with mensagens = get_flashed_messages(with_categories=true) %}
+        {% for categoria, mensagem in mensagens %}
+            <p class="aviso">{{ mensagem }}</p>
+        {% endfor %}
+    {% endwith %}
+
+    <section class="painel-produtos">
+
+        <form method="POST" action="{{ url_for('novo_produto') }}">
+
+            <label>SKU do produto:</label>
+            <input type="text" name="sku" required maxlength="50">
+
+            <label>Nome do produto:</label>
+            <input type="text" name="nome" required>
+
+            <label>Fabricante:</label>
+            <input type="text" name="fabricante" required>
+
+            <label>Classificação:</label>
+            <select name="classificacao" required>
+                <option value="">Selecione</option>
+                <option value="Hardware">Hardware</option>
+                <option value="Software">Software</option>
+                <option value="Periférico">Periférico</option>
+            </select>
+
+            <label>Especificação técnica:</label>
+            <textarea name="especificacao"></textarea>
+
+            <label>Modalidade de licença:</label>
+            <input type="text" name="modalidade_licenca">
+
+            <label>Preço de venda:</label>
+            <input type="number" name="preco_venda"
+                   step="0.01" min="0.01" required>
+
+            <label>Quantidade em estoque:</label>
+            <input type="number" name="quantidade_estoque"
+                   min="0" value="0" required>
+
+            <label>Estoque mínimo:</label>
+            <input type="number" name="estoque_minimo"
+                   min="0" value="0" required>
+
+            <label>Localização física ou digital:</label>
+            <input type="text" name="localizacao">
+
+            <label>Categoria:</label>
+            <select name="categoria_id" required>
+                <option value="">Selecione a categoria</option>
+
+                {% for categoria in categorias %}
+                    <option value="{{ categoria.id }}">
+                        {{ categoria.nome }}
+                    </option>
+                {% endfor %}
+            </select>
+
+            <label>Fornecedor:</label>
+            <select name="fornecedor_id" required>
+                <option value="">Selecione o fornecedor</option>
+
+                {% for fornecedor in fornecedores %}
+                    <option value="{{ fornecedor.id }}">
+                        {{ fornecedor.razao_social }}
+                    </option>
+                {% endfor %}
+            </select>
+
+            <br><br>
+
+          <div style="display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap;">
+
+    <button type="submit">
+        Salvar Produto
+    </button>
+
+    <a href="{{ url_for('inicio') }}" class="botao-novo">
+        Voltar ao painel
+    </a>
+
+</div>
+
+        </form>
+
+    </section>
+
+</main>
+
+</body>
+</html>

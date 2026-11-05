@@ -1,0 +1,123 @@
+
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relatórios - TechStock Manager</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+
+    <aside class="sidebar">
+        <h2>TechStock</h2>
+        <p class="subtitulo">MANAGER</p>
+
+        <nav>
+            <a href="{{ url_for('inicio') }}">Painel inicial</a>
+            <a href="{{ url_for('movimentacoes') }}">Movimentações</a>
+            <a href="{{ url_for('relatorios') }}" class="ativo">Relatórios</a>
+        </nav>
+
+        <div class="rodape-menu">
+            Sistema de Gestão de Inventário
+        </div>
+    </aside>
+
+    <main class="conteudo">
+
+        <header>
+            <div>
+                <h1>Relatórios</h1>
+                <p>Resumo geral do estoque e das movimentações.</p>
+            </div>
+            <span class="status">Sistema online</span>
+        </header>
+
+        <section class="indicadores">
+
+            <div class="cartao">
+                <p>Produtos ativos</p>
+                <h2>{{ total_produtos }}</h2>
+                <span>Produtos cadastrados</span>
+            </div>
+
+            <div class="cartao">
+                <p>Unidades em estoque</p>
+                <h2>{{ total_unidades }}</h2>
+                <span>Total disponível</span>
+            </div>
+
+            <div class="cartao alerta">
+                <p>Estoque baixo</p>
+                <h2>{{ produtos_baixos }}</h2>
+                <span>Precisam de atenção</span>
+            </div>
+
+            <div class="cartao">
+                <p>Total de entradas</p>
+                <h2>{{ total_entradas }}</h2>
+                <span>Unidades recebidas</span>
+            </div>
+
+            <div class="cartao">
+                <p>Total de saídas</p>
+                <h2>{{ total_saidas }}</h2>
+                <span>Unidades retiradas</span>
+            </div>
+
+        </section>
+
+        <section class="painel-produtos">
+
+            <h2>Últimas movimentações</h2>
+            <p>As 20 movimentações mais recentes do sistema.</p>
+
+            <div class="tabela-responsiva">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>SKU</th>
+                            <th>Produto</th>
+                            <th>Operação</th>
+                            <th>Quantidade</th>
+                            <th>Data e hora</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for registro in historico %}
+                        <tr>
+                            <td>{{ registro.sku }}</td>
+                            <td>{{ registro.produto }}</td>
+                            <td>{{ registro.tipo_operacao }}</td>
+                            <td>{{ registro.quantidade }}</td>
+                            <td>{{ registro.data_hora }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5">Nenhuma movimentação registrada.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <br>
+
+            <a href="{{ url_for('movimentacoes') }}" class="botao-novo">
+                Ver histórico completo
+            </a>
+
+        </section>
+
+        <footer>
+            TechStock Manager - Sistema de Gestão de Inventário
+        </footer>
+
+    </main>
+
+</body>
+</html>

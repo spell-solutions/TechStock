@@ -1,0 +1,90 @@
+
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editar Produto - TechStock</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+
+<main class="conteudo" style="margin-left: 0;">
+
+    <h1>Editar Produto</h1>
+    <p>Altere os dados do produto selecionado.</p>
+
+    {% with mensagens = get_flashed_messages(with_categories=true) %}
+        {% for categoria, mensagem in mensagens %}
+            <p class="aviso">{{ mensagem }}</p>
+        {% endfor %}
+    {% endwith %}
+
+    <section class="painel-produtos">
+
+        <form method="POST">
+
+            <label>SKU do produto:</label>
+            <input type="text" name="sku" value="{{ produto.sku }}" required>
+
+            <label>Nome do produto:</label>
+            <input type="text" name="nome" value="{{ produto.nome }}" required>
+
+            <label>Fabricante:</label>
+            <input type="text" name="fabricante" value="{{ produto.fabricante }}" required>
+
+            <label>Classificação:</label>
+            <select name="classificacao" required>
+                <option value="Hardware" {% if produto.classificacao == 'Hardware' %}selected{% endif %}>Hardware</option>
+                <option value="Software" {% if produto.classificacao == 'Software' %}selected{% endif %}>Software</option>
+                <option value="Periférico" {% if produto.classificacao == 'Periférico' %}selected{% endif %}>Periférico</option>
+            </select>
+
+            <label>Especificação técnica:</label>
+            <textarea name="especificacao">{{ produto.especificacao or '' }}</textarea>
+
+            <label>Modalidade de licença:</label>
+            <input type="text" name="modalidade_licenca" value="{{ produto.modalidade_licenca or '' }}">
+
+            <label>Preço de venda:</label>
+            <input type="number" name="preco_venda" step="0.01" min="0.01" value="{{ produto.preco_venda }}" required>
+
+            <label>Estoque mínimo:</label>
+            <input type="number" name="estoque_minimo" min="0" value="{{ produto.estoque_minimo }}" required>
+
+            <label>Localização física ou digital:</label>
+            <input type="text" name="localizacao" value="{{ produto.localizacao or '' }}">
+
+            <label>Categoria:</label>
+            <select name="categoria_id" required>
+                {% for categoria in categorias %}
+                    <option value="{{ categoria.id }}" {% if categoria.id == produto.categoria_id %}selected{% endif %}>
+                        {{ categoria.nome }}
+                    </option>
+                {% endfor %}
+            </select>
+
+            <label>Fornecedor:</label>
+            <select name="fornecedor_id" required>
+                {% for fornecedor in fornecedores %}
+                    <option value="{{ fornecedor.id }}" {% if fornecedor.id == produto.fornecedor_id %}selected{% endif %}>
+                        {{ fornecedor.razao_social }}
+                    </option>
+                {% endfor %}
+            </select>
+
+            <br><br>
+
+            <button type="submit">Salvar alterações</button>
+            <a href="{{ url_for('inicio') }}">Cancelar</a>
+
+        </form>
+
+    </section>
+
+</main>
+
+</body>
+</html>

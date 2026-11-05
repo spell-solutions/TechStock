@@ -1,0 +1,338 @@
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    background: #f3f5f9;
+    color: #263247;
+}
+
+/* MENU LATERAL */
+
+.sidebar {
+    width: 245px;
+    height: 100vh;
+    background: #172b4d;
+    color: white;
+    position: fixed;
+    padding: 30px 20px;
+}
+
+.sidebar h2 {
+    font-size: 25px;
+}
+
+.subtitulo {
+    color: #a9bad3;
+    letter-spacing: 4px;
+    font-size: 12px;
+    margin-top: 5px;
+}
+
+nav {
+    margin-top: 45px;
+}
+
+nav a {
+    display: block;
+    text-decoration: none;
+    color: #d7e0ef;
+    padding: 14px;
+    margin-bottom: 10px;
+    border-radius: 8px;
+}
+
+nav a:hover,
+nav a.ativo {
+    background: #31588b;
+    color: white;
+}
+
+.rodape-menu {
+    position: absolute;
+    bottom: 25px;
+    font-size: 11px;
+    color: #a9bad3;
+}
+
+/* CONTEUDO PRINCIPAL */
+
+.conteudo {
+    margin-left: 245px;
+    padding: 35px;
+}
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+}
+
+header h1 {
+    font-size: 28px;
+}
+
+header p {
+    color: #718096;
+    margin-top: 8px;
+}
+
+.status {
+    background: #dcfce7;
+    color: #15803d;
+    padding: 10px 16px;
+    border-radius: 20px;
+    font-size: 13px;
+}
+
+/* CARTOES */
+
+.indicadores {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 18px;
+    margin-bottom: 25px;
+}
+
+.cartao {
+    background: white;
+    padding: 22px;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px #00000008;
+}
+
+.cartao p {
+    color: #718096;
+    font-size: 14px;
+}
+
+.cartao h2 {
+    font-size: 30px;
+    margin: 15px 0;
+    color: #172b4d;
+}
+
+.cartao span {
+    font-size: 12px;
+    color: #718096;
+}
+
+.cartao.alerta h2 {
+    color: #dc2626;
+}
+
+/* ALERTAS */
+
+.painel-alertas,
+.painel-produtos {
+    background: white;
+    padding: 25px;
+    border-radius: 12px;
+    margin-bottom: 25px;
+    box-shadow: 0 2px 8px #00000008;
+}
+
+.painel-alertas h2,
+.painel-produtos h2 {
+    font-size: 19px;
+    margin-bottom: 15px;
+}
+
+.aviso {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 15px;
+    background: #fff7ed;
+    border-radius: 8px;
+    margin-top: 10px;
+    font-size: 13px;
+}
+
+.perigo {
+    color: #dc2626;
+    font-weight: bold;
+}
+
+/* TABELA */
+
+.titulo-tabela {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.titulo-tabela p {
+    color: #718096;
+    font-size: 13px;
+}
+
+.quantidade {
+    background: #e8effa;
+    color: #31588b;
+    padding: 8px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+}
+
+.tabela-responsiva {
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+    font-size: 13px;
+}
+
+th {
+    background: #f3f5f9;
+    color: #526078;
+    padding: 14px 10px;
+}
+
+td {
+    padding: 15px 10px;
+    border-bottom: 1px solid #edf0f5;
+}
+
+.badge-normal,
+.badge-perigo {
+    padding: 6px 9px;
+    border-radius: 20px;
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+.badge-normal {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+.badge-perigo {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+footer {
+    text-align: center;
+    color: #94a3b8;
+    font-size: 12px;
+    padding: 20px;
+}
+
+/* ADAPTACAO PARA TELAS MENORES */
+
+@media (max-width: 1000px) {
+    .indicadores {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 650px) {
+    .sidebar {
+        position: static;
+        width: 100%;
+        height: auto;
+    }
+
+    .rodape-menu {
+        display: none;
+    }
+
+    .conteudo {
+        margin-left: 0;
+        padding: 18px;
+    }
+
+    .indicadores {
+        grid-template-columns: 1fr;
+    }
+
+    header {
+        align-items: flex-start;
+        gap: 15px;
+        flex-direction: column;
+    }
+}
+
+/* FORMULARIO DE CADASTRO */
+
+form {
+    max-width: 750px;
+    margin-top: 25px;
+}
+
+form label {
+    display: block;
+    font-weight: bold;
+    margin-top: 18px;
+    margin-bottom: 7px;
+    color: #263247;
+}
+
+form input,
+form select,
+form textarea {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #d5dce7;
+    border-radius: 7px;
+    font-size: 14px;
+    background: white;
+}
+
+form textarea {
+    min-height: 90px;
+    resize: vertical;
+}
+
+form input:focus,
+form select:focus,
+form textarea:focus {
+    outline: 2px solid #31588b;
+    border-color: #31588b;
+}
+
+form button,
+.botao-novo {
+    display: inline-block;
+    background: #244d80;
+    color: white;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 7px;
+    cursor: pointer;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+form button:hover,
+.botao-novo:hover {
+    background: #172b4d;
+}
+
+.botao-limpar {
+    display: inline-block;
+    padding: 10px 16px;
+    background-color: #e9edf3;
+    color: #263b59;
+    text-decoration: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.botao-limpar:hover {
+    background-color: #dce3ed;
+}

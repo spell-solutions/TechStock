@@ -1,0 +1,160 @@
+
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Movimentações - TechStock Manager</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+
+    <aside class="sidebar">
+
+        <h2>TechStock</h2>
+        <p class="subtitulo">MANAGER</p>
+
+        <nav>
+            <a href="{{ url_for('inicio') }}">Painel inicial</a>
+            <a href="{{ url_for('inicio') }}#produtos">Produtos</a>
+            <a href="{{ url_for('inicio') }}#alertas">Alertas de estoque</a>
+            <a href="{{ url_for('movimentacoes') }}" class="ativo">
+                Movimentações
+            </a>
+            <a href="{{ url_for('nova_movimentacao') }}">
+                Nova movimentação
+            </a>
+        </nav>
+
+        <div class="rodape-menu">
+            Sistema de Gestão de Inventário
+        </div>
+
+    </aside>
+
+    <main class="conteudo">
+
+        <header>
+            <div>
+                <h1>Histórico de Movimentações</h1>
+                <p>Controle de entradas e saídas do estoque.</p>
+            </div>
+
+            <span class="status">Sistema online</span>
+        </header>
+
+        <section class="painel-produtos">
+
+            <div class="titulo-tabela">
+
+                <div>
+                    <h2>Registro de operações</h2>
+                    <p>Histórico registrado no banco de dados.</p>
+                </div>
+
+               <div style="display: flex; align-items: center; gap: 12px;">
+
+    <span class="quantidade">
+        {{ registros|length }} movimentações
+    </span>
+
+    <a
+        href="{{ url_for('nova_movimentacao') }}"
+        style="
+            background: #315d91;
+            color: white;
+            padding: 11px 16px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: bold;
+        "
+    >
+        + Nova movimentação
+    </a>
+
+</div>
+
+            </div>
+
+            <div class="tabela-responsiva">
+
+                <table>
+
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>SKU</th>
+                            <th>Produto</th>
+                            <th>Operação</th>
+                            <th>Quantidade</th>
+                            <th>Data e hora</th>
+                            <th>Observação</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+
+                        {% for registro in registros %}
+
+                        <tr>
+                            <td>{{ registro.id }}</td>
+
+                            <td>{{ registro.sku }}</td>
+
+                            <td>
+                                <strong>{{ registro.produto }}</strong>
+                            </td>
+
+                            <td>
+                                {% if registro.tipo_operacao == "Entrada" %}
+                                    <span class="badge-normal">
+                                        Entrada
+                                    </span>
+                                {% else %}
+                                    <span class="badge-perigo">
+                                        Saída
+                                    </span>
+                                {% endif %}
+                            </td>
+
+                            <td>{{ registro.quantidade }}</td>
+
+                            <td>{{ registro.data_hora }}</td>
+
+                            <td>
+                                {{ registro.observacao or "-" }}
+                            </td>
+                        </tr>
+
+                        {% else %}
+
+                        <tr>
+                            <td colspan="7">
+                                Nenhuma movimentação encontrada.
+                            </td>
+                        </tr>
+
+                        {% endfor %}
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </section>
+
+        <footer>
+            TechStock Manager - Sistema de Gestão de Inventário
+        </footer>
+
+    </main>
+
+</body>
+</html>
