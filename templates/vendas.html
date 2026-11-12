@@ -1,0 +1,77 @@
+
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Histórico Vendas - TechStock Manager</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+
+    <aside class="sidebar">
+        <h2>TechStock</h2>
+        <p class="subtitulo">MANAGER</p>
+
+        <nav>
+            <a href="{{ url_for('inicio') }}" class="ativo">Painel inicial</a>
+<a href="{{ url_for('pdv') }}" class="ativo">Abrir PDV (Vendas)</a>
+<a href="{{ url_for('listar_vendas') }}" class="active ativo">Histórico Vendas</a>
+<a href="{{ url_for('movimentacoes') }}" class="ativo">Movimentações</a>
+<a href="{{ url_for('relatorios') }}" class="ativo">Relatórios</a>
+<div style="margin-top:auto; padding-top:14px; border-top:1px solid rgba(255,255,255,0.15); font-size:13px; color:#e2e8f0;"><div style="font-weight:bold;">{{ session.usuario_nome }}</div><span style="display:inline-block; background:#2563eb; color:#fff; padding:2px 8px; border-radius:4px; font-size:11px; margin:6px 0;">{{ session.perfil_acesso }}</span><br><a href="{{ url_for('logout') }}" style="color:#fca5a5; text-decoration:none; font-weight:bold;">Sair</a></div>
+</nav>
+</aside>
+
+    <main class="conteudo">
+
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:22px;">
+    <div>
+        <h1 style="margin:0 0 4px;">Histórico de Vendas & Faturamento</h1>
+        <p style="margin:0; color:#64748b;">Pedidos faturados no PDV, recibos oficiais e estornos.</p>
+    </div>
+    <span style="background:#dcfce7; color:#166534; padding:6px 14px; border-radius:999px; font-size:0.8rem; font-weight:600;">Sistema online</span>
+</div>
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in messages %}
+    <div style="padding:12px 16px; margin-bottom:18px; border-radius:6px; background:{{ '#fee2e2' if cat=='erro' else '#dcfce7' }}; color:{{ '#991b1b' if cat=='erro' else '#166534' }}; font-weight:600;">{{ msg }}</div>
+  {% endfor %}
+{% endwith %}
+<div style="background:#fff; padding:22px; border-radius:10px; border:1px solid #e2e8f0;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+        <h3 style="margin:0;">Pedidos Registrados</h3>
+        <a href="{{ url_for('pdv') }}" style="padding:8px 14px; background:#1e3a8a; color:#fff; text-decoration:none; border-radius:6px; font-size:0.85rem; font-weight:600;">+ Nova Venda (PDV)</a>
+    </div>
+    <table style="width:100%; border-collapse:collapse;">
+        <thead><tr style="background:#f8fafc; border-bottom:1px solid #e2e8f0; text-align:left;"><th style="padding:10px;">Pedido</th><th>Data / Hora</th><th>Cliente</th><th>Pagamento</th><th>Operador</th><th>Total</th><th>Status</th><th>Ações</th></tr></thead>
+        <tbody>
+            {% for v in vendas %}
+            <tr style="border-bottom:1px solid #e2e8f0;">
+                <td style="padding:10px;"><strong>{{ v.numero_pedido }}</strong></td>
+                <td>{{ v.data_hora }}</td>
+                <td>{{ v.cliente_nome }}</td>
+                <td>{{ v.forma_pagamento }}</td>
+                <td>{{ v.operador_nome }}</td>
+                <td><strong>R$ {{ "%.2f"|format(v.valor_total) }}</strong></td>
+                <td><span style="padding:3px 9px; border-radius:999px; font-size:0.78rem; font-weight:600; background:{{ '#dcfce7' if v.status_venda=='CONCLUIDA' else '#fee2e2' }}; color:{{ '#166534' if v.status_venda=='CONCLUIDA' else '#991b1b' }};">{{ v.status_venda }}</span></td>
+                <td style="display:flex; gap:8px; padding:10px 0;">
+                    <a href="{{ url_for('recibo_venda', venda_id=v.id) }}" style="padding:5px 10px; background:#1e3a8a; color:#fff; text-decoration:none; border-radius:6px; font-size:0.8rem; font-weight:600;">Recibo</a>
+                    {% if session.perfil_acesso == 'GERENTE' and v.status_venda == 'CONCLUIDA' %}
+                    <form method="POST" action="{{ url_for('cancelar_venda', venda_id=v.id) }}" onsubmit="return confirm('Confirmar cancelamento e estorno de estoque?');" style="margin:0;">
+                        <button type="submit" style="padding:5px 10px; background:#dc2626; color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:0.8rem; font-weight:600;">Cancelar</button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+</main>
+
+</body>
+</html>
