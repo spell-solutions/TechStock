@@ -1,120 +1,155 @@
-
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Abrir PDV (Vendas) - TechStock Manager</title>
-
-    <link rel="stylesheet"
-          href="{{ url_for('static', filename='style.css') }}">
+    <title>Frente de Caixa (PDV) - TechStore</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
+<body style="background:#f1f5f9; font-family:sans-serif; padding:20px;">
+    <div style="max-width:1100px; margin:auto;">
+        <header style="display:flex; justify-content:space-between; align-items:center; background:#0f172a; color:#fff; padding:15px 20px; border-radius:8px; margin-bottom:20px;">
+            <div>
+                <strong>TechStore PDV</strong> | Operador: {{ session.usuario_nome }}
+                <span style="background:#2563eb; padding:3px 8px; border-radius:4px; font-size:0.8rem; margin-left:8px;">{{ session.perfil_acesso }}</span>
+            </div>
+            <nav style="display:flex; gap:15px;">
+                <a href="{{ url_for('index') }}" style="color:#cbd5e1; text-decoration:none;">Catálogo</a>
+                <a href="{{ url_for('listar_vendas') }}" style="color:#cbd5e1; text-decoration:none;">Vendas</a>
+                <a href="{{ url_for('logout') }}" style="color:#fca5a5; text-decoration:none;">Sair</a>
+            </nav>
+        </header>
 
-<body>
+        <div id="alerta-erro" style="display:none; background:#fee2e2; border-left:5px solid #dc2626; color:#991b1b; padding:15px; border-radius:6px; margin-bottom:20px; font-weight:bold;"></div>
 
-    <aside class="sidebar">
-        <h2>TechStock</h2>
-        <p class="subtitulo">MANAGER</p>
+        <div style="display:grid; grid-template-columns:1fr 1.3fr; gap:20px;">
+            <!-- Seleção de Produtos -->
+            <div style="background:#fff; padding:20px; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.08);">
+                <h3>Adicionar Item ao Carrinho</h3>
+                <label>Produto / Licença</label>
+                <select id="produto-select" style="width:100%; padding:10px; margin:8px 0 15px; border:1px solid #cbd5e1; border-radius:6px;">
+                    {% for p in produtos %}
+                    <option value="{{ p.id }}" data-nome="{{ p.nome }}" data-preco="{{ p.preco_venda }}" data-estoque="{{ p.estoque }}">
+                        {{ p.nome }} — R$ {{ "%.2f"|format(p.preco_venda) }} (Saldo: {{ p.estoque }})
+                    </option>
+                    {% endfor %}
+                </select>
 
-        <nav>
-            <a href="{{ url_for('inicio') }}" class="ativo">Painel inicial</a>
-<a href="{{ url_for('pdv') }}" class="active ativo">Abrir PDV (Vendas)</a>
-<a href="{{ url_for('listar_vendas') }}" class="ativo">Histórico Vendas</a>
-<a href="{{ url_for('movimentacoes') }}" class="ativo">Movimentações</a>
-<a href="{{ url_for('relatorios') }}" class="ativo">Relatórios</a>
-<div style="margin-top:auto; padding-top:14px; border-top:1px solid rgba(255,255,255,0.15); font-size:13px; color:#e2e8f0;"><div style="font-weight:bold;">{{ session.usuario_nome }}</div><span style="display:inline-block; background:#2563eb; color:#fff; padding:2px 8px; border-radius:4px; font-size:11px; margin:6px 0;">{{ session.perfil_acesso }}</span><br><a href="{{ url_for('logout') }}" style="color:#fca5a5; text-decoration:none; font-weight:bold;">Sair</a></div>
-</nav>
-</aside>
+                <label>Quantidade</label>
+                <input type="number" id="qtd-input" value="1" min="1" style="width:100%; padding:10px; margin:8px 0 15px; border:1px solid #cbd5e1; border-radius:6px;">
 
-    <main class="conteudo">
+                <button type="button" onclick="adicionarItem()" style="width:100%; padding:12px; background:#0284c7; color:#fff; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">+ Inserir no Carrinho</button>
+            </div>
 
-<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:22px;">
-    <div>
-        <h1 style="margin:0 0 4px;">Frente de Caixa (PDV)</h1>
-        <p style="margin:0; color:#64748b;">Registro de vendas multi-itens com baixa atômica no estoque.</p>
+            <!-- Carrinho & Fechamento -->
+            <div style="background:#fff; padding:20px; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.08);">
+                <h3>Carrinho da Venda</h3>
+                <table style="width:100%; border-collapse:collapse; margin-bottom:15px;">
+                    <thead>
+                        <tr style="border-bottom:2px solid #e2e8f0; text-align:left;">
+                            <th>Item</th>
+                            <th>Qtd</th>
+                            <th>Unit.</th>
+                            <th>Subtotal</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="carrinho-body"></tbody>
+                </table>
+
+                <div style="text-align:right; font-size:1.3rem; font-weight:bold; margin-bottom:20px; color:#0f172a;">
+                    Total Geral: R$ <span id="total-geral">0.00</span>
+                </div>
+
+                <hr style="margin-bottom:15px;">
+                <h4>Dados do Faturamento</h4>
+                <input type="text" id="cliente-nome" placeholder="Nome / Razão Social do Cliente" required style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #cbd5e1; border-radius:6px;">
+                <input type="text" id="cliente-doc" placeholder="CPF ou CNPJ" required style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #cbd5e1; border-radius:6px;">
+                <select id="forma-pagamento" style="width:100%; padding:10px; margin-bottom:15px; border:1px solid #cbd5e1; border-radius:6px;">
+                    <option value="PIX">PIX Instantâneo</option>
+                    <option value="CARTAO_CREDITO">Cartão de Crédito</option>
+                    <option value="BOLETO_FATURADO">Boleto Faturado Corporativo</option>
+                </select>
+
+                <button type="button" onclick="finalizarCompra()" style="width:100%; padding:14px; background:#16a34a; color:#fff; border:none; border-radius:6px; font-size:1rem; font-weight:bold; cursor:pointer;">Confirmar Venda (Checkout ACID)</button>
+            </div>
+        </div>
     </div>
-    <span style="background:#dcfce7; color:#166534; padding:6px 14px; border-radius:999px; font-size:0.8rem; font-weight:600;">Sistema online</span>
-</div>
-<div id="alerta-erro" style="display:none; background:#fee2e2; border-left:5px solid #dc2626; color:#991b1b; padding:14px 16px; border-radius:6px; margin-bottom:20px; font-weight:600;"></div>
-<div style="display:grid; grid-template-columns:1fr 1.35fr; gap:22px;">
-    <div style="background:#fff; padding:22px; border-radius:10px; border:1px solid #e2e8f0;">
-        <h3 style="margin-top:0;">1. Selecionar Produto / Licença</h3>
-        <label style="display:block; font-weight:600; margin-bottom:6px;">Item disponível em estoque</label>
-        <select id="produto-select" style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:6px; margin-bottom:14px;">
-            {% for p in produtos %}
-            <option value="{{ p.id }}" data-nome="[{{ p.sku }}] {{ p.nome }}" data-preco="{{ p.preco_venda }}" data-estoque="{{ p.quantidade_estoque }}">[{{ p.sku }}] {{ p.nome }} — R$ {{ "%.2f"|format(p.preco_venda) }} (Saldo: {{ p.quantidade_estoque }})</option>
-            {% endfor %}
-        </select>
-        <label style="display:block; font-weight:600; margin-bottom:6px;">Quantidade</label>
-        <input type="number" id="qtd-input" value="1" min="1" style="width:100%; box-sizing:border-box; padding:10px; border:1px solid #cbd5e1; border-radius:6px; margin-bottom:16px;">
-        <button type="button" onclick="adicionarItem()" style="width:100%; padding:11px; background:#1e3a8a; color:#fff; border:none; border-radius:6px; font-weight:600; cursor:pointer;">+ Adicionar ao Carrinho</button>
-    </div>
-    <div style="background:#fff; padding:22px; border-radius:10px; border:1px solid #e2e8f0;">
-        <h3 style="margin-top:0;">2. Carrinho Multi-Itens & Checkout</h3>
-        <table style="width:100%; border-collapse:collapse; margin-bottom:14px;">
-            <thead><tr style="background:#f8fafc; border-bottom:1px solid #e2e8f0; text-align:left;"><th style="padding:8px;">Item</th><th>Qtd</th><th>Unit.</th><th>Subtotal</th><th></th></tr></thead>
-            <tbody id="carrinho-body"></tbody>
-        </table>
-        <div style="text-align:right; font-size:1.25rem; font-weight:700; margin-bottom:16px;">Total Geral: R$ <span id="total-geral">0.00</span></div>
-        <input type="text" id="cliente-nome" placeholder="Nome Completo ou Razão Social" style="width:100%; box-sizing:border-box; padding:10px; border:1px solid #cbd5e1; border-radius:6px; margin-bottom:10px;">
-        <input type="text" id="cliente-doc" placeholder="CPF ou CNPJ" style="width:100%; box-sizing:border-box; padding:10px; border:1px solid #cbd5e1; border-radius:6px; margin-bottom:10px;">
-        <select id="forma-pagamento" style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:6px; margin-bottom:16px;">
-            <option value="PIX">PIX Instantâneo</option>
-            <option value="CARTAO_CREDITO">Cartão de Crédito</option>
-            <option value="BOLETO_FATURADO">Boleto Faturado Corporativo</option>
-        </select>
-        <button type="button" onclick="finalizarCompra()" style="width:100%; padding:12px; background:#15803d; color:#fff; border:none; border-radius:6px; font-weight:600; cursor:pointer;">Confirmar Venda (Checkout ACID)</button>
-    </div>
-</div>
-<script>
-    let carrinho = [];
-    function adicionarItem() {
-        const sel = document.getElementById("produto-select");
-        if (!sel.options.length) return;
-        const opt = sel.options[sel.selectedIndex];
-        const produto_id = parseInt(opt.value);
-        const nome = opt.dataset.nome;
-        const preco = parseFloat(opt.dataset.preco);
-        const estoque = parseInt(opt.dataset.estoque);
-        const quantidade = parseInt(document.getElementById("qtd-input").value);
-        if (!quantidade || quantidade <= 0) return;
-        const ex = carrinho.find(i => i.produto_id === produto_id);
-        if (ex) ex.quantidade += quantidade; else carrinho.push({ produto_id, nome, preco, estoque, quantidade });
-        renderCarrinho();
-    }
-    function removerItem(idx) { carrinho.splice(idx, 1); renderCarrinho(); }
-    function renderCarrinho() {
-        const tbody = document.getElementById("carrinho-body");
-        tbody.innerHTML = "";
-        let total = 0;
-        carrinho.forEach((item, idx) => {
-            const sub = item.preco * item.quantidade;
-            total += sub;
-            const semSaldo = item.quantidade > item.estoque;
-            tbody.innerHTML += `<tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:8px; ${semSaldo ? 'color:#dc2626; font-weight:bold;' : ''}">${item.nome} ${semSaldo ? '(Saldo: ' + item.estoque + ')' : ''}</td><td>${item.quantidade}</td><td>R$ ${item.preco.toFixed(2)}</td><td>R$ ${sub.toFixed(2)}</td><td><button type="button" onclick="removerItem(${idx})" style="color:#dc2626; border:none; background:none; cursor:pointer; font-weight:bold;">✕</button></td></tr>`;
-        });
-        document.getElementById("total-geral").innerText = total.toFixed(2);
-    }
-    async function finalizarCompra() {
-        const alerta = document.getElementById("alerta-erro");
-        alerta.style.display = "none";
-        const resp = await fetch("{{ url_for('finalizar_venda') }}", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
+
+    <script>
+        let carrinho = [];
+
+        function adicionarItem() {
+            const sel = document.getElementById("produto-select");
+            const opt = sel.options[sel.selectedIndex];
+            const produto_id = parseInt(opt.value);
+            const nome = opt.dataset.nome;
+            const preco = parseFloat(opt.dataset.preco);
+            const estoque = parseInt(opt.dataset.estoque);
+            const quantidade = parseInt(document.getElementById("qtd-input").value);
+
+            if (quantidade <= 0) return;
+
+            const existente = carrinho.find(i => i.produto_id === produto_id);
+            if (existente) {
+                existente.quantidade += quantidade;
+            } else {
+                carrinho.push({ produto_id, nome, preco, estoque, quantidade });
+            }
+            renderCarrinho();
+        }
+
+        function removerItem(idx) {
+            carrinho.splice(idx, 1);
+            renderCarrinho();
+        }
+
+        function renderCarrinho() {
+            const tbody = document.getElementById("carrinho-body");
+            tbody.innerHTML = "";
+            let total = 0;
+
+            carrinho.forEach((item, idx) => {
+                const sub = item.preco * item.quantidade;
+                total += sub;
+                const alertaSaldo = item.quantidade > item.estoque ? 'style="color:#dc2626; font-weight:bold;"' : '';
+                tbody.innerHTML += `
+                    <tr style="border-bottom:1px solid #f1f5f9;">
+                        <td ${alertaSaldo}>${item.nome} ${item.quantidade > item.estoque ? '(Acima do saldo!)' : ''}</td>
+                        <td>${item.quantidade}</td>
+                        <td>R$ ${item.preco.toFixed(2)}</td>
+                        <td>R$ ${sub.toFixed(2)}</td>
+                        <td><button onclick="removerItem(${idx})" style="color:#dc2626; border:none; background:none; cursor:pointer;">✕</button></td>
+                    </tr>
+                `;
+            });
+            document.getElementById("total-geral").innerText = total.toFixed(2);
+        }
+
+        async function finalizarCompra() {
+            const alerta = document.getElementById("alerta-erro");
+            alerta.style.display = "none";
+
+            const payload = {
                 cliente_nome: document.getElementById("cliente-nome").value,
                 cliente_documento: document.getElementById("cliente-doc").value,
                 forma_pagamento: document.getElementById("forma-pagamento").value,
                 itens: carrinho.map(i => ({ produto_id: i.produto_id, quantidade: i.quantidade }))
-            })
-        });
-        const data = await resp.json();
-        if (data.sucesso) window.location.href = data.redirect_url;
-        else { alerta.innerText = "ERRO NA TRANSAÇÃO (ROLLBACK EXECUTADO): " + data.erro; alerta.style.display = "block"; window.scrollTo({ top: 0, behavior: "smooth" }); }
-    }
-</script>
+            };
 
-</main>
+            const resp = await fetch("{{ url_for('finalizar_venda') }}", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
 
+            const data = await resp.json();
+            if (data.sucesso) {
+                window.location.href = data.redirect_url;
+            } else {
+                alerta.innerText = "TRANSAÇÃO ABORTADA (ROLLBACK): " + data.erro;
+                alerta.style.display = "block";
+            }
+        }
+    </script>
 </body>
 </html>

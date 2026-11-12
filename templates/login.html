@@ -2,30 +2,29 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <title>Login - TechStore Corporativo</title>
+    <title>Login - TechStore PDV</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
-<body style="display:flex; justify-content:center; align-items:center; min-height:100vh; background:#0f172a; margin:0; font-family:sans-serif;">
-    <div style="background:#fff; padding:2.2rem; border-radius:10px; width:100%; max-width:410px; box-shadow:0 15px 30px rgba(0,0,0,0.35);">
-        <h2 style="margin:0 0 0.4rem; color:#0f172a;">TechStore Corporativo</h2>
-        <p style="color:#64748b; margin:0 0 1.5rem; font-size:0.95rem;">Módulo de Vendas, PDV & Controle de Acesso</p>
+<body style="display:flex; justify-content:center; align-items:center; min-height:100vh; background:#0f172a;">
+    <div style="background:#fff; padding:2rem; border-radius:10px; width:100%; max-width:400px; box-shadow:0 10px 25px rgba(0,0,0,0.3);">
+        <h2 style="margin-bottom:0.5rem; color:#0f172a;">TechStore Corporativo</h2>
+        <p style="color:#64748b; margin-bottom:1.5rem;">Acesso ao Módulo de Vendas & Estoque</p>
+
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% for cat, msg in messages %}
-            <div style="padding:10px 12px; margin-bottom:1rem; border-radius:6px; font-size:0.9rem; background:{{ '#fee2e2' if cat=='erro' else '#dcfce7' }}; color:{{ '#991b1b' if cat=='erro' else '#166534' }};">{{ msg }}</div>
+            <div style="padding:10px; margin-bottom:1rem; border-radius:6px; background:{{ '#fee2e2' if cat=='erro' else '#dcfce7' }}; color:{{ '#991b1b' if cat=='erro' else '#166534' }};">
+                {{ msg }}
+            </div>
           {% endfor %}
         {% endwith %}
+
         <form method="POST">
-            <label style="font-weight:bold; font-size:0.9rem; color:#334155;">E-mail Corporativo</label>
-            <input type="email" name="email" required placeholder="operador@techstore.com" style="width:100%; box-sizing:border-box; padding:10px; margin:6px 0 14px; border:1px solid #cbd5e1; border-radius:6px;">
-            <label style="font-weight:bold; font-size:0.9rem; color:#334155;">Senha</label>
-            <input type="password" name="senha" required placeholder="••••••••" style="width:100%; box-sizing:border-box; padding:10px; margin:6px 0 18px; border:1px solid #cbd5e1; border-radius:6px;">
-            <button type="submit" style="width:100%; padding:12px; background:#2563eb; color:#fff; border:none; border-radius:6px; font-weight:bold; font-size:1rem; cursor:pointer;">Entrar no Sistema</button>
+            <label>E-mail Corporativo</label>
+            <input type="email" name="email" required placeholder="operador@techstore.com" style="width:100%; padding:10px; margin:6px 0 14px; border:1px solid #cbd5e1; border-radius:6px;">
+            <label>Senha</label>
+            <input type="password" name="senha" required placeholder="••••••••" style="width:100%; padding:10px; margin:6px 0 18px; border:1px solid #cbd5e1; border-radius:6px;">
+            <button type="submit" style="width:100%; padding:12px; background:#2563eb; color:#fff; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">Entrar no Sistema</button>
         </form>
-        <div style="margin-top:1.4rem; padding-top:1rem; border-top:1px solid #e2e8f0; font-size:0.8rem; color:#64748b;">
-            <strong>Credenciais de Teste:</strong><br>
-            Operador: <code>operador@techstore.com</code> / <code>operador123</code><br>
-            Gerente: <code>gerente@techstore.com</code> / <code>gerente123</code>
-        </div>
     </div>
 </body>
 </html>
