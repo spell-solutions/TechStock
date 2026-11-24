@@ -54,7 +54,7 @@
             </thead>
             <tbody>
                 {% for item in itens %}
-                {% set eh_licenca = 'licença' in item.produto_nome.lower() or 'windows' in item.produto_nome.lower() or 'office' in item.produto_nome.lower() or 'software' in item.produto_nome.lower() %}
+                {% set eh_licenca = item.classificacao == 'Software' %}
                 <tr>
                     <td>{{ item.produto_nome }}</td>
                     <td>

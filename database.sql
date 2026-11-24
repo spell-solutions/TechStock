@@ -73,3 +73,90 @@ ON produtos(fornecedor_id);
 
 CREATE INDEX IF NOT EXISTS idx_movimentacoes_produto
 ON movimentacoes(produto_id);
+
+-- CARGA INICIAL DE DEMONSTRACAO (reexecutavel sem duplicar SKUs/CNPJs)
+INSERT OR IGNORE INTO categorias (nome, descricao) VALUES
+('Hardware', 'Pecas internas de computadores'),
+('Software', 'Programas e licencas'),
+('Periféricos', 'Acessorios de computadores'),
+('Armazenamento', 'Dispositivos para guardar dados');
+
+INSERT OR IGNORE INTO fornecedores (razao_social, cnpj, telefone, email) VALUES
+('Tech Distribuidora LTDA', '00000000000101', '(62) 3000-1000', 'tech@exemplo.com'),
+('Info Center Comercial LTDA', '00000000000102', '(62) 3000-2000', 'info@exemplo.com'),
+('Digital Solutions LTDA', '00000000000103', '(62) 3000-3000', 'digital@exemplo.com');
+
+INSERT OR IGNORE INTO produtos (
+    sku, nome, fabricante, classificacao, especificacao, modalidade_licenca,
+    preco_venda, quantidade_estoque, estoque_minimo, localizacao,
+    categoria_id, fornecedor_id
+)
+SELECT 'RAM001', 'Memoria RAM 16GB', 'Kingston', 'Hardware', 'DDR4 16GB', NULL,
+       250.00, 15, 5, 'Prateleira A1', c.id, f.id
+FROM categorias c JOIN fornecedores f ON f.cnpj = '00000000000101'
+WHERE c.nome = 'Hardware';
+
+INSERT OR IGNORE INTO produtos (
+    sku, nome, fabricante, classificacao, especificacao, modalidade_licenca,
+    preco_venda, quantidade_estoque, estoque_minimo, localizacao,
+    categoria_id, fornecedor_id
+)
+SELECT 'SSD001', 'SSD 480GB', 'Kingston', 'Hardware', 'SSD SATA 480GB', NULL,
+       320.00, 8, 5, 'Prateleira A2', c.id, f.id
+FROM categorias c JOIN fornecedores f ON f.cnpj = '00000000000101'
+WHERE c.nome = 'Armazenamento';
+
+INSERT OR IGNORE INTO produtos (
+    sku, nome, fabricante, classificacao, especificacao, modalidade_licenca,
+    preco_venda, quantidade_estoque, estoque_minimo, localizacao,
+    categoria_id, fornecedor_id
+)
+SELECT 'CPU001', 'Processador Ryzen 5', 'AMD', 'Hardware', 'Ryzen 5 5600', NULL,
+       850.00, 10, 3, 'Prateleira A3', c.id, f.id
+FROM categorias c JOIN fornecedores f ON f.cnpj = '00000000000102'
+WHERE c.nome = 'Hardware';
+
+INSERT OR IGNORE INTO produtos (
+    sku, nome, fabricante, classificacao, especificacao, modalidade_licenca,
+    preco_venda, quantidade_estoque, estoque_minimo, localizacao,
+    categoria_id, fornecedor_id
+)
+SELECT 'MON001', 'Monitor 24 polegadas', 'LG', 'Periférico', 'Monitor Full HD', NULL,
+       780.00, 4, 5, 'Prateleira B1', c.id, f.id
+FROM categorias c JOIN fornecedores f ON f.cnpj = '00000000000102'
+WHERE c.nome = 'Periféricos';
+
+INSERT OR IGNORE INTO produtos (
+    sku, nome, fabricante, classificacao, especificacao, modalidade_licenca,
+    preco_venda, quantidade_estoque, estoque_minimo, localizacao,
+    categoria_id, fornecedor_id
+)
+SELECT 'LIC001', 'Licenca Microsoft 365', 'Microsoft', 'Software',
+       'Licenca de produtividade', 'Anual', 450.00, 20, 5, 'Cofre Digital',
+       c.id, f.id
+FROM categorias c JOIN fornecedores f ON f.cnpj = '00000000000103'
+WHERE c.nome = 'Software';
+
+INSERT OR IGNORE INTO produtos (
+    sku, nome, fabricante, classificacao, especificacao, modalidade_licenca,
+    preco_venda, quantidade_estoque, estoque_minimo, localizacao,
+    categoria_id, fornecedor_id
+)
+SELECT 'LIC002', 'Licenca de Seguranca', 'ESET', 'Software',
+       'Software de protecao', 'Anual', 180.00, 3, 5, 'Cofre Digital',
+       c.id, f.id
+FROM categorias c JOIN fornecedores f ON f.cnpj = '00000000000103'
+WHERE c.nome = 'Software';
+
+INSERT INTO movimentacoes (produto_id, tipo_operacao, quantidade, observacao)
+SELECT p.id, 'Entrada', p.quantidade_estoque, 'Estoque inicial de demonstracao'
+FROM produtos p
+WHERE p.sku IN ('RAM001', 'SSD001', 'CPU001', 'MON001', 'LIC001', 'LIC002')
+  AND p.quantidade_estoque > 0
+  AND NOT EXISTS (
+      SELECT 1
+      FROM movimentacoes m
+      WHERE m.produto_id = p.id
+        AND m.tipo_operacao = 'Entrada'
+        AND m.observacao LIKE 'Estoque inicial%'
+  );

@@ -13,8 +13,10 @@
                 <span style="background:#2563eb; padding:3px 8px; border-radius:4px; font-size:0.8rem; margin-left:8px;">{{ session.perfil_acesso }}</span>
             </div>
             <nav style="display:flex; gap:15px;">
-                <a href="{{ url_for('index') }}" style="color:#cbd5e1; text-decoration:none;">Catálogo</a>
-                <a href="{{ url_for('listar_vendas') }}" style="color:#cbd5e1; text-decoration:none;">Vendas</a>
+                <a href="{{ url_for('inicio') }}" style="color:#cbd5e1; text-decoration:none;">Painel</a>
+                {% if session.perfil_acesso == 'GERENTE' %}
+                    <a href="{{ url_for('listar_vendas') }}" style="color:#cbd5e1; text-decoration:none;">Vendas</a>
+                {% endif %}
                 <a href="{{ url_for('logout') }}" style="color:#fca5a5; text-decoration:none;">Sair</a>
             </nav>
         </header>
@@ -28,8 +30,8 @@
                 <label>Produto / Licença</label>
                 <select id="produto-select" style="width:100%; padding:10px; margin:8px 0 15px; border:1px solid #cbd5e1; border-radius:6px;">
                     {% for p in produtos %}
-                    <option value="{{ p.id }}" data-nome="{{ p.nome }}" data-preco="{{ p.preco_venda }}" data-estoque="{{ p.estoque }}">
-                        {{ p.nome }} — R$ {{ "%.2f"|format(p.preco_venda) }} (Saldo: {{ p.estoque }})
+                    <option value="{{ p.id }}" data-nome="{{ p.nome }}" data-preco="{{ p.preco_venda }}" data-estoque="{{ p.quantidade_estoque }}">
+                        {{ p.nome }} — R$ {{ "%.2f"|format(p.preco_venda) }} (Saldo: {{ p.quantidade_estoque }})
                     </option>
                     {% endfor %}
                 </select>
@@ -85,9 +87,13 @@
             const nome = opt.dataset.nome;
             const preco = parseFloat(opt.dataset.preco);
             const estoque = parseInt(opt.dataset.estoque);
-            const quantidade = parseInt(document.getElementById("qtd-input").value);
+            const quantidade = Number(document.getElementById("qtd-input").value);
 
-            if (quantidade <= 0) return;
+            if (!Number.isInteger(quantidade) || quantidade <= 0) {
+                document.getElementById("alerta-erro").innerText = "Informe uma quantidade inteira maior que zero.";
+                document.getElementById("alerta-erro").style.display = "block";
+                return;
+            }
 
             const existente = carrinho.find(i => i.produto_id === produto_id);
             if (existente) {
@@ -111,16 +117,41 @@
             carrinho.forEach((item, idx) => {
                 const sub = item.preco * item.quantidade;
                 total += sub;
-                const alertaSaldo = item.quantidade > item.estoque ? 'style="color:#dc2626; font-weight:bold;"' : '';
-                tbody.innerHTML += `
-                    <tr style="border-bottom:1px solid #f1f5f9;">
-                        <td ${alertaSaldo}>${item.nome} ${item.quantidade > item.estoque ? '(Acima do saldo!)' : ''}</td>
-                        <td>${item.quantidade}</td>
-                        <td>R$ ${item.preco.toFixed(2)}</td>
-                        <td>R$ ${sub.toFixed(2)}</td>
-                        <td><button onclick="removerItem(${idx})" style="color:#dc2626; border:none; background:none; cursor:pointer;">✕</button></td>
-                    </tr>
-                `;
+                const acimaDoSaldo = item.quantidade > item.estoque;
+                const linha = document.createElement("tr");
+                linha.style.borderBottom = "1px solid #f1f5f9";
+
+                const nome = document.createElement("td");
+                nome.textContent = item.nome + (acimaDoSaldo ? " (Acima do saldo!)" : "");
+                if (acimaDoSaldo) {
+                    nome.style.color = "#dc2626";
+                    nome.style.fontWeight = "bold";
+                }
+                linha.appendChild(nome);
+
+                for (const valor of [
+                    item.quantidade,
+                    `R$ ${item.preco.toFixed(2)}`,
+                    `R$ ${sub.toFixed(2)}`,
+                ]) {
+                    const celula = document.createElement("td");
+                    celula.textContent = valor;
+                    linha.appendChild(celula);
+                }
+
+                const celulaRemover = document.createElement("td");
+                const botaoRemover = document.createElement("button");
+                botaoRemover.type = "button";
+                botaoRemover.textContent = "✕";
+                botaoRemover.setAttribute("aria-label", "Remover item");
+                botaoRemover.style.color = "#dc2626";
+                botaoRemover.style.border = "none";
+                botaoRemover.style.background = "none";
+                botaoRemover.style.cursor = "pointer";
+                botaoRemover.addEventListener("click", () => removerItem(idx));
+                celulaRemover.appendChild(botaoRemover);
+                linha.appendChild(celulaRemover);
+                tbody.appendChild(linha);
             });
             document.getElementById("total-geral").innerText = total.toFixed(2);
         }

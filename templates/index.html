@@ -18,8 +18,13 @@
 
         <nav>
             <a href="{{ url_for('inicio') }}" class="ativo">Painel inicial</a>
+            <a href="{{ url_for('pdv') }}">Abrir PDV</a>
             <a href="{{ url_for('movimentacoes') }}">Movimentações</a>
-             <a href="{{ url_for('relatorios') }}">Relatórios</a>
+            {% if session.perfil_acesso == 'GERENTE' %}
+                <a href="{{ url_for('relatorios') }}">Relatórios</a>
+                <a href="{{ url_for('listar_vendas') }}">Histórico de vendas</a>
+            {% endif %}
+            <a href="{{ url_for('logout') }}">Sair ({{ session.usuario_nome }})</a>
         </nav>
 
         <div class="rodape-menu">
@@ -32,10 +37,18 @@
         <header>
             <div>
                 <h1>Painel de Operações</h1>
-                <p>Bem-vinda ao TechStock Manager!</p>
+                <p>Bem-vindo(a) ao TechStock Manager!</p>
             </div>
             <span class="status">Sistema online</span>
         </header>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% for categoria, mensagem in messages %}
+                <div class="mensagem" style="background:{{ '#dcfce7' if categoria == 'sucesso' else '#fee2e2' }}; color:{{ '#166534' if categoria == 'sucesso' else '#b91c1c' }};">
+                    {{ mensagem }}
+                </div>
+            {% endfor %}
+        {% endwith %}
 
         <section class="indicadores">
 
@@ -65,7 +78,7 @@
 
         </section>
 
-        <section class="painel-alertas">
+        <section class="painel-alertas" id="alertas">
             <h2>Alertas de reposição</h2>
 
             {% if produtos_baixos %}
@@ -76,7 +89,7 @@
                             Estoque: {{ produto.quantidade_estoque }}
                             | Mínimo: {{ produto.estoque_minimo }}
                         </span>
-                        <span class="perigo">Reposição necessária</span>
+                        <span class="perigo">Risco de Ruptura / Reposição Necessária</span>
                     </div>
                 {% endfor %}
             {% else %}
@@ -84,7 +97,7 @@
             {% endif %}
         </section>
 
-        <section class="painel-produtos">
+        <section class="painel-produtos" id="produtos">
 
             <div class="titulo-tabela">
                 <div>
@@ -112,10 +125,11 @@
 
 </form>
                 
-                <a href="{{ url_for('novo_produto') }}"
-                   class="botao-novo">
-                    + Novo produto
-                </a>
+                {% if session.perfil_acesso == 'GERENTE' %}
+                    <a href="{{ url_for('novo_produto') }}" class="botao-novo">
+                        + Novo produto
+                    </a>
+                {% endif %}
 
                 <span class="quantidade">
                     {{ total_produtos }} produtos
@@ -132,9 +146,12 @@
                             <th>Categoria</th>
                             <th>Fornecedor</th>
                             <th>Preço</th>
+                            <th>Localização / Licença</th>
                             <th>Estoque</th>
                             <th>Situação</th>
-                            <th>Ações</th>
+                            {% if session.perfil_acesso == 'GERENTE' %}
+                                <th>Ações</th>
+                            {% endif %}
                         </tr>
                     </thead>
 
@@ -147,37 +164,41 @@
                             <td>{{ produto.categoria }}</td>
                             <td>{{ produto.fornecedor }}</td>
                             <td>R$ {{ "%.2f"|format(produto.preco_venda) }}</td>
+                            <td>
+                                {{ produto.localizacao or "-" }}
+                                {% if produto.modalidade_licenca %}
+                                    <br><small>{{ produto.modalidade_licenca }}</small>
+                                {% endif %}
+                            </td>
                             <td>{{ produto.quantidade_estoque }}</td>
 
                             <td>
-                                {% if produto.quantidade_estoque < produto.estoque_minimo %}
+                                {% if produto.quantidade_estoque <= produto.estoque_minimo %}
                                     <span class="badge-perigo">Estoque baixo</span>
                                 {% else %}
                                     <span class="badge-normal">Normal</span>
                                 {% endif %}
                             </td>
- 
-<td>
-    <a href="{{ url_for('editar_produto', produto_id=produto.id) }}"
-   class="botao-novo"
-   style="display: inline-block; margin-right: 5px;">
-    Editar
-</a>
-
-    <form method="POST"
-          action="{{ url_for('desativar_produto', produto_id=produto.id) }}"
-          onsubmit="return confirm('Deseja realmente desativar este produto?');"
-          style="display: inline;">
-
-        <button type="submit">Desativar</button>
-
-    </form>
-</td>
+                            {% if session.perfil_acesso == 'GERENTE' %}
+                                <td>
+                                    <a href="{{ url_for('editar_produto', produto_id=produto.id) }}"
+                                       class="botao-novo"
+                                       style="display: inline-block; margin-right: 5px;">
+                                        Editar
+                                    </a>
+                                    <form method="POST"
+                                          action="{{ url_for('desativar_produto', produto_id=produto.id) }}"
+                                          onsubmit="return confirm('Deseja realmente desativar este produto?');"
+                                          style="display: inline;">
+                                        <button type="submit">Desativar</button>
+                                    </form>
+                                </td>
+                            {% endif %}
 
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="9">
+                            <td colspan="{{ 10 if session.perfil_acesso == 'GERENTE' else 9 }}">
                                 Nenhum produto cadastrado.
                             </td>
                         </tr>

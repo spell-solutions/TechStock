@@ -12,9 +12,11 @@
 
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% for cat, msg in messages %}
+            {% if not msg.startswith("Bem-vindo(a),") %}
             <div style="padding:10px; margin-bottom:1rem; border-radius:6px; background:{{ '#fee2e2' if cat=='erro' else '#dcfce7' }}; color:{{ '#991b1b' if cat=='erro' else '#166534' }};">
                 {{ msg }}
             </div>
+            {% endif %}
           {% endfor %}
         {% endwith %}
 
