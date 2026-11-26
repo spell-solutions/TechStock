@@ -5,49 +5,52 @@
     <title>Frente de Caixa (PDV) - TechStore</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
-<body style="background:#f1f5f9; font-family:sans-serif; padding:20px;">
+<body class="pagina-venda">
     <div style="max-width:1100px; margin:auto;">
-        <header style="display:flex; justify-content:space-between; align-items:center; background:#0f172a; color:#fff; padding:15px 20px; border-radius:8px; margin-bottom:20px;">
+        <header style="display:flex; justify-content:space-between; align-items:center; background:#024d60; color:#d9f5f0; padding:15px 20px; border-radius:8px; margin-bottom:20px;">
             <div>
                 <strong>TechStore PDV</strong> | Operador: {{ session.usuario_nome }}
-                <span style="background:#2563eb; padding:3px 8px; border-radius:4px; font-size:0.8rem; margin-left:8px;">{{ session.perfil_acesso }}</span>
+                <span style="background:#2cacad; color:#024d60; padding:3px 8px; border-radius:4px; font-size:0.8rem; margin-left:8px;">{{ session.perfil_acesso }}</span>
             </div>
-            <nav style="display:flex; gap:15px;">
-                <a href="{{ url_for('inicio') }}" style="color:#cbd5e1; text-decoration:none;">Painel</a>
+            <nav class="pdv-nav">
                 {% if session.perfil_acesso == 'GERENTE' %}
-                    <a href="{{ url_for('listar_vendas') }}" style="color:#cbd5e1; text-decoration:none;">Vendas</a>
+                    <a class="botao-novo" href="{{ url_for('listar_vendas') }}">Vendas</a>
                 {% endif %}
-                <a href="{{ url_for('logout') }}" style="color:#fca5a5; text-decoration:none;">Sair</a>
+                <a class="botao-novo pdv-voltar-painel" href="{{ url_for('inicio') }}">
+                    <span aria-hidden="true">←</span>
+                    Voltar ao Painel Inicial
+                </a>
             </nav>
         </header>
 
-        <div id="alerta-erro" style="display:none; background:#fee2e2; border-left:5px solid #dc2626; color:#991b1b; padding:15px; border-radius:6px; margin-bottom:20px; font-weight:bold;"></div>
+        <div id="alerta-erro" style="display:none; background:#d9f5f0; color:#b42318; padding:15px; border-radius:6px; margin-bottom:20px; font-weight:bold;"></div>
 
         <div style="display:grid; grid-template-columns:1fr 1.3fr; gap:20px;">
             <!-- Seleção de Produtos -->
-            <div style="background:#fff; padding:20px; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.08);">
+            <div style="background:#d9f5f0; padding:20px; border-radius:8px; box-shadow:0 2px 6px rgba(2,77,96,0.12);">
                 <h3>Adicionar Item ao Carrinho</h3>
                 <label>Produto / Licença</label>
-                <select id="produto-select" style="width:100%; padding:10px; margin:8px 0 15px; border:1px solid #cbd5e1; border-radius:6px;">
+                <input type="search" id="produto-busca" placeholder="Pesquisar produtos..." aria-label="Pesquisar produtos" style="width:100%; padding:10px; margin:8px 0;">
+                <select id="produto-select" required style="width:100%; padding:10px; margin:8px 0 15px; border:1px solid #cbd5e1; border-radius:6px;">
                     {% for p in produtos %}
-                    <option value="{{ p.id }}" data-nome="{{ p.nome }}" data-preco="{{ p.preco_venda }}" data-estoque="{{ p.quantidade_estoque }}">
+                    <option value="{{ p.id }}" data-busca="{{ p.sku }} {{ p.nome }}" data-nome="{{ p.nome }}" data-preco="{{ p.preco_venda }}" data-estoque="{{ p.quantidade_estoque }}">
                         {{ p.nome }} — R$ {{ "%.2f"|format(p.preco_venda) }} (Saldo: {{ p.quantidade_estoque }})
                     </option>
                     {% endfor %}
                 </select>
 
                 <label>Quantidade</label>
-                <input type="number" id="qtd-input" value="1" min="1" style="width:100%; padding:10px; margin:8px 0 15px; border:1px solid #cbd5e1; border-radius:6px;">
+                <input type="number" id="qtd-input" value="1" min="1" required style="width:100%; padding:10px; margin:8px 0 15px; border:1px solid #cbd5e1; border-radius:6px;">
 
-                <button type="button" onclick="adicionarItem()" style="width:100%; padding:12px; background:#0284c7; color:#fff; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">+ Inserir no Carrinho</button>
+                <button type="button" onclick="adicionarItem()" style="width:100%; padding:12px; background:#2cacad; color:#024d60; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">+ Inserir no Carrinho</button>
             </div>
 
             <!-- Carrinho & Fechamento -->
-            <div style="background:#fff; padding:20px; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.08);">
+            <div style="background:#d9f5f0; padding:20px; border-radius:8px; box-shadow:0 2px 6px rgba(2,77,96,0.12);">
                 <h3>Carrinho da Venda</h3>
                 <table style="width:100%; border-collapse:collapse; margin-bottom:15px;">
                     <thead>
-                        <tr style="border-bottom:2px solid #e2e8f0; text-align:left;">
+                        <tr style="border-bottom:2px solid #75e2e0; text-align:left;">
                             <th>Item</th>
                             <th>Qtd</th>
                             <th>Unit.</th>
@@ -58,36 +61,58 @@
                     <tbody id="carrinho-body"></tbody>
                 </table>
 
-                <div style="text-align:right; font-size:1.3rem; font-weight:bold; margin-bottom:20px; color:#0f172a;">
+                <div style="text-align:right; font-size:1.3rem; font-weight:bold; margin-bottom:20px; color:#024d60;">
                     Total Geral: R$ <span id="total-geral">0.00</span>
                 </div>
 
                 <hr style="margin-bottom:15px;">
                 <h4>Dados do Faturamento</h4>
                 <input type="text" id="cliente-nome" placeholder="Nome / Razão Social do Cliente" required style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #cbd5e1; border-radius:6px;">
-                <input type="text" id="cliente-doc" placeholder="CPF ou CNPJ" required style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #cbd5e1; border-radius:6px;">
-                <select id="forma-pagamento" style="width:100%; padding:10px; margin-bottom:15px; border:1px solid #cbd5e1; border-radius:6px;">
+                <input type="text" id="cliente-doc" placeholder="CPF ou CNPJ" aria-label="CPF ou CNPJ" inputmode="numeric" pattern="(?:[0-9]{11}|[0-9]{3}\.[0-9]{3}\.[0-9]{3}-[0-9]{2}|[0-9]{14}|[0-9]{2}\.[0-9]{3}\.[0-9]{3}/[0-9]{4}-[0-9]{2})" title="Informe um CPF ou CNPJ apenas com números e pontuação padrão." required style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #cbd5e1; border-radius:6px;">
+                <select id="forma-pagamento" required aria-label="Forma de pagamento" style="width:100%; padding:10px; margin-bottom:15px; border:1px solid #cbd5e1; border-radius:6px;">
                     <option value="PIX">PIX Instantâneo</option>
                     <option value="CARTAO_CREDITO">Cartão de Crédito</option>
                     <option value="BOLETO_FATURADO">Boleto Faturado Corporativo</option>
                 </select>
 
-                <button type="button" onclick="finalizarCompra()" style="width:100%; padding:14px; background:#16a34a; color:#fff; border:none; border-radius:6px; font-size:1rem; font-weight:bold; cursor:pointer;">Confirmar Venda (Checkout ACID)</button>
+                <button type="button" onclick="finalizarCompra()" style="width:100%; padding:14px; background:#1c4ea7; color:#d9f5f0; border:none; border-radius:6px; font-size:1rem; font-weight:bold; cursor:pointer;">Confirmar Venda</button>
             </div>
         </div>
     </div>
 
+    <script src="{{ url_for('static', filename='form-validation.js') }}"></script>
     <script>
         let carrinho = [];
 
+        const produtoSelect = document.getElementById("produto-select");
+        document.getElementById("produto-busca").addEventListener("input", event => {
+            const termo = event.target.value.trim().toLocaleLowerCase("pt-BR");
+            let primeiroVisivel = null;
+            Array.from(produtoSelect.options).forEach(option => {
+                option.hidden = !option.dataset.busca.toLocaleLowerCase("pt-BR").includes(termo);
+                if (!option.hidden && !primeiroVisivel) {
+                    primeiroVisivel = option;
+                }
+            });
+            if (!primeiroVisivel) {
+                produtoSelect.value = "";
+            } else if (!produtoSelect.selectedOptions.length || produtoSelect.selectedOptions[0].hidden) {
+                produtoSelect.value = primeiroVisivel.value;
+            }
+        });
+
         function adicionarItem() {
             const sel = document.getElementById("produto-select");
+            const quantidadeField = document.getElementById("qtd-input");
+            if (!window.validateRequiredFields([sel, quantidadeField])) {
+                return;
+            }
             const opt = sel.options[sel.selectedIndex];
             const produto_id = parseInt(opt.value);
             const nome = opt.dataset.nome;
             const preco = parseFloat(opt.dataset.preco);
             const estoque = parseInt(opt.dataset.estoque);
-            const quantidade = Number(document.getElementById("qtd-input").value);
+            const quantidade = Number(quantidadeField.value);
 
             if (!Number.isInteger(quantidade) || quantidade <= 0) {
                 document.getElementById("alerta-erro").innerText = "Informe uma quantidade inteira maior que zero.";
@@ -119,12 +144,12 @@
                 total += sub;
                 const acimaDoSaldo = item.quantidade > item.estoque;
                 const linha = document.createElement("tr");
-                linha.style.borderBottom = "1px solid #f1f5f9";
+                linha.style.borderBottom = "1px solid #75e2e0";
 
                 const nome = document.createElement("td");
                 nome.textContent = item.nome + (acimaDoSaldo ? " (Acima do saldo!)" : "");
                 if (acimaDoSaldo) {
-                    nome.style.color = "#dc2626";
+                    nome.style.color = "#b42318";
                     nome.style.fontWeight = "bold";
                 }
                 linha.appendChild(nome);
@@ -144,7 +169,7 @@
                 botaoRemover.type = "button";
                 botaoRemover.textContent = "✕";
                 botaoRemover.setAttribute("aria-label", "Remover item");
-                botaoRemover.style.color = "#dc2626";
+                botaoRemover.style.color = "#b42318";
                 botaoRemover.style.border = "none";
                 botaoRemover.style.background = "none";
                 botaoRemover.style.cursor = "pointer";
@@ -159,6 +184,34 @@
         async function finalizarCompra() {
             const alerta = document.getElementById("alerta-erro");
             alerta.style.display = "none";
+            const documento = document.getElementById("cliente-doc");
+            const textoDocumento = documento.value.trim();
+            const apenasDigitos = textoDocumento.replace(/\D/g, "");
+            const cpf = apenasDigitos.length === 11;
+            let documentoValido = false;
+            if (cpf && /^[0-9.\-]+$/.test(textoDocumento) && !/^(\d)\1{10}$/.test(apenasDigitos)) {
+                let soma = 0;
+                for (let i = 0; i < 9; i++) soma += Number(apenasDigitos[i]) * (10 - i);
+                let digito = (soma * 10) % 11;
+                if (digito === 10) digito = 0;
+                if (digito === Number(apenasDigitos[9])) {
+                    soma = 0;
+                    for (let i = 0; i < 10; i++) soma += Number(apenasDigitos[i]) * (11 - i);
+                    digito = (soma * 10) % 11;
+                    if (digito === 10) digito = 0;
+                    documentoValido = digito === Number(apenasDigitos[10]);
+                }
+            } else if (apenasDigitos.length === 14 && /^[0-9./\-]+$/.test(textoDocumento)) {
+                documentoValido = true;
+            }
+            documento.setCustomValidity(documentoValido ? "" : "Informe um CPF válido ou CNPJ com 14 dígitos, sem letras.");
+            if (!window.validateRequiredFields([
+                document.getElementById("cliente-nome"),
+                documento,
+                document.getElementById("forma-pagamento")
+            ])) {
+                return;
+            }
 
             const payload = {
                 cliente_nome: document.getElementById("cliente-nome").value,

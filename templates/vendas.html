@@ -5,45 +5,55 @@
     <title>Histórico de Vendas - TechStore</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
-<body style="font-family:sans-serif; padding:20px; background:#f1f5f9;">
-    <div style="max-width:1000px; margin:auto; background:#fff; padding:25px; border-radius:8px;">
+<body style="font-family:sans-serif; padding:20px; background:#d9f5f0; color:#024d60;">
+    <div style="max-width:1000px; margin:auto; background:#d9f5f0; padding:25px; border-radius:8px; box-shadow:0 2px 8px rgba(2,77,96,0.12);">
         <div style="display:flex; justify-content:space-between; align-items:center;">
             <h2>Histórico de Vendas & Faturamento</h2>
-            <a href="{{ url_for('pdv') }}" style="padding:10px 16px; background:#2563eb; color:#fff; text-decoration:none; border-radius:6px;">+ Abrir PDV</a>
+            <div class="acoes-historico-vendas">
+                <a class="botao-novo botao-abrir-pdv" href="{{ url_for('pdv') }}">+ Abrir PDV</a>
+            </div>
         </div>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% for cat, msg in messages %}
-            <div style="padding:10px; margin:15px 0; border-radius:6px; background:{{ '#fee2e2' if cat=='erro' else '#dcfce7' }};">{{ msg }}</div>
+            <div class="mensagem-venda {{ 'mensagem-erro' if cat == 'erro' else 'mensagem-sucesso' }}">{{ msg }}</div>
           {% endfor %}
         {% endwith %}
 
         <table style="width:100%; border-collapse:collapse; margin-top:15px;">
             <thead>
-                <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; text-align:left;">
+                <tr style="background:#75e2e0; border-bottom:2px solid #2cacad; text-align:left;">
                     <th>Pedido</th>
                     <th>Data/Hora</th>
                     <th>Cliente</th>
                     <th>Operador</th>
                     <th>Total</th>
                     <th>Status</th>
+                    <th>Pagamento</th>
                     <th>Ações</th>
                 </tr>
             </thead>
             <tbody>
                 {% for v in vendas %}
-                <tr style="border-bottom:1px solid #e2e8f0;">
+                <tr style="border-bottom:1px solid rgba(2,77,96,0.16);">
                     <td>{{ v.numero_pedido }}</td>
                     <td>{{ v.data_hora }}</td>
                     <td>{{ v.cliente_nome }}</td>
                     <td>{{ v.operador_nome }}</td>
                     <td>R$ {{ "%.2f"|format(v.valor_total) }}</td>
                     <td><strong>{{ v.status_venda }}</strong></td>
-                    <td style="display:flex; gap:8px; padding:8px 0;">
+                    <td><span class="status-pagamento {{ 'pendente' if v.status_pagamento == 'PENDENTE' else 'pago' }}">{{ v.status_pagamento }}</span></td>
+                    <td class="acoes-venda">
                         <a href="{{ url_for('recibo_venda', venda_id=v.id) }}">Recibo</a>
+                        {% if v.status_venda == 'CONCLUIDA' and v.status_pagamento == 'PENDENTE' %}
+                        <a href="{{ url_for('editar_venda', venda_id=v.id) }}">Editar</a>
+                        <form method="POST" action="{{ url_for('confirmar_pagamento', venda_id=v.id) }}" onsubmit="return confirm('Confirmar que o pagamento foi recebido?');">
+                            <button type="submit">Marcar como pago</button>
+                        </form>
+                        {% endif %}
                         {% if session.perfil_acesso == 'GERENTE' and v.status_venda == 'CONCLUIDA' %}
                         <form method="POST" action="{{ url_for('cancelar_venda', venda_id=v.id) }}" onsubmit="return confirm('Confirmar cancelamento e estorno de estoque?');">
-                            <button type="submit" style="color:#dc2626; background:none; border:none; cursor:pointer; font-weight:bold;">Cancelar</button>
+                            <button type="submit" style="color:#b42318; background:none; border:none; cursor:pointer; font-weight:bold;">Cancelar</button>
                         </form>
                         {% endif %}
                     </td>

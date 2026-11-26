@@ -1,0 +1,22 @@
+<aside class="sidebar">
+    <h2>TechStock</h2>
+    <p class="subtitulo">MANAGER</p>
+
+    <nav>
+        <a href="{{ url_for('inicio') }}" class="{{ 'ativo' if request.endpoint == 'inicio' else '' }}">Painel inicial</a>
+        <a href="{{ url_for('pdv') }}" class="{{ 'ativo' if request.endpoint == 'pdv' else '' }}">Abrir PDV</a>
+        {% if session.perfil_acesso == 'GERENTE' %}
+            <a href="{{ url_for('listar_vendas') }}" class="{{ 'ativo' if request.endpoint == 'listar_vendas' else '' }}">Histórico de vendas</a>
+        {% endif %}
+        <a href="{{ url_for('movimentacoes') }}" class="{{ 'ativo' if request.endpoint in ('movimentacoes', 'nova_movimentacao') else '' }}">Movimentações</a>
+        {% if session.perfil_acesso == 'GERENTE' %}
+            <a href="{{ url_for('relatorios') }}" class="{{ 'ativo' if request.endpoint == 'relatorios' else '' }}">Relatórios</a>
+            <a href="{{ url_for('novo_usuario') }}" class="{{ 'ativo' if request.endpoint == 'novo_usuario' else '' }}">Cadastrar operador</a>
+        {% endif %}
+    </nav>
+
+    <div class="rodape-menu">
+        <span>{{ session.usuario_nome }} · {{ session.perfil_acesso }}</span>
+        <a class="link-sair" href="{{ url_for('logout') }}">Sair</a>
+    </div>
+</aside>

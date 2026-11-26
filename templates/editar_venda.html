@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editar venda {{ venda.numero_pedido }} - TechStock</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="pagina-venda">
+    <main class="formulario-pagina">
+        <a class="link-voltar" href="{{ url_for('listar_vendas') }}">Voltar ao histórico</a>
+        <section class="formulario-cartao">
+            <h1>Editar venda {{ venda.numero_pedido }}</h1>
+            <p>A edição só fica disponível enquanto o pagamento estiver pendente.</p>
+            <div id="erro-edicao" class="mensagem mensagem-erro" role="alert" hidden></div>
+            <form id="form-editar-venda" onsubmit="salvarEdicao(event)">
+                <label for="cliente-nome">Nome do cliente</label>
+                <input id="cliente-nome" value="{{ venda.cliente_nome }}" required>
+
+                <label for="forma-pagamento">Forma de pagamento</label>
+                <select id="forma-pagamento" required>
+                    <option value="PIX" {{ 'selected' if venda.forma_pagamento == 'PIX' else '' }}>PIX Instantâneo</option>
+                    <option value="CARTAO_CREDITO" {{ 'selected' if venda.forma_pagamento == 'CARTAO_CREDITO' else '' }}>Cartão de Crédito</option>
+                    <option value="BOLETO_FATURADO" {{ 'selected' if venda.forma_pagamento == 'BOLETO_FATURADO' else '' }}>Boleto Faturado Corporativo</option>
+                </select>
+
+                <h2>Produtos da venda</h2>
+                <div id="itens-venda"></div>
+                <button class="botao-secundario" type="button" onclick="adicionarLinha()">+ Adicionar produto</button>
+                <div class="botoes-formulario">
+                    <button type="submit">Salvar alterações</button>
+                    <a class="botao-secundario" href="{{ url_for('listar_vendas') }}">Cancelar</a>
+                </div>
+            </form>
+        </section>
+    </main>
+    <template id="linha-item">
+        <div class="linha-item-venda">
+            <select class="produto-venda" aria-label="Produto" required>
+                <option value="">Selecione um produto</option>
+                {% for produto in produtos %}
+                <option value="{{ produto.id }}">{{ produto.nome }} — R$ {{ "%.2f"|format(produto.preco_venda) }} (estoque: {{ produto.quantidade_estoque }})</option>
+                {% endfor %}
+            </select>
+            <input class="quantidade-venda" type="number" min="1" value="1" aria-label="Quantidade" required>
+            <button type="button" class="botao-remover-item" aria-label="Remover produto">Remover</button>
+        </div>
+    </template>
+    <script>
+        const containerItens = document.getElementById("itens-venda");
+        const itensExistentes = {{ itens|map(attribute="produto_id")|list|tojson }};
+        const quantidadesExistentes = {{ itens|map(attribute="quantidade_vendida")|list|tojson }};
+
+        function adicionarLinha(produtoId = "", quantidade = 1) {
+            const fragmento = document.getElementById("linha-item").content.cloneNode(true);
+            const linha = fragmento.querySelector(".linha-item-venda");
+            linha.querySelector(".produto-venda").value = produtoId;
+            linha.querySelector(".quantidade-venda").value = quantidade;
+            linha.querySelector(".botao-remover-item").addEventListener("click", () => linha.remove());
+            containerItens.appendChild(fragmento);
+        }
+
+        async function salvarEdicao(event) {
+            event.preventDefault();
+            const erro = document.getElementById("erro-edicao");
+            erro.hidden = true;
+            const itens = Array.from(containerItens.querySelectorAll(".linha-item-venda")).map(linha => ({
+                produto_id: linha.querySelector(".produto-venda").value,
+                quantidade: linha.querySelector(".quantidade-venda").value
+            }));
+            try {
+                const resposta = await fetch(window.location.pathname, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        cliente_nome: document.getElementById("cliente-nome").value,
+                        forma_pagamento: document.getElementById("forma-pagamento").value,
+                        itens
+                    })
+                });
+                const resultado = await resposta.json();
+                if (!resposta.ok || !resultado.sucesso) {
+                    erro.textContent = resultado.erro || "Não foi possível salvar a venda.";
+                    erro.hidden = false;
+                    return;
+                }
+                window.location.href = resultado.redirect_url;
+            } catch (falha) {
+                erro.textContent = "Falha de comunicação ao salvar a venda. Tente novamente.";
+                erro.hidden = false;
+            }
+        }
+
+        if (itensExistentes.length) {
+            itensExistentes.forEach((produtoId, indice) => adicionarLinha(produtoId, quantidadesExistentes[indice]));
+        } else {
+            adicionarLinha();
+        }
+    </script>
+</body>
+</html>

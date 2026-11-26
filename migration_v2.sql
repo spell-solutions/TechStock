@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS Vendas (
     forma_pagamento TEXT NOT NULL CHECK (forma_pagamento IN ('PIX', 'CARTAO_CREDITO', 'BOLETO_FATURADO')),
     valor_total REAL NOT NULL CHECK (valor_total >= 0),
     status_venda TEXT NOT NULL DEFAULT 'CONCLUIDA' CHECK (status_venda IN ('CONCLUIDA', 'CANCELADA')),
+    status_pagamento TEXT NOT NULL DEFAULT 'PAGO' CHECK (status_pagamento IN ('PENDENTE', 'PAGO')),
     usuario_id INTEGER NOT NULL,
     FOREIGN KEY (usuario_id) REFERENCES Usuarios(id)
 );

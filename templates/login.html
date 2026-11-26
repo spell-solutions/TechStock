@@ -5,15 +5,15 @@
     <title>Login - TechStore PDV</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
-<body style="display:flex; justify-content:center; align-items:center; min-height:100vh; background:#0f172a;">
-    <div style="background:#fff; padding:2rem; border-radius:10px; width:100%; max-width:400px; box-shadow:0 10px 25px rgba(0,0,0,0.3);">
-        <h2 style="margin-bottom:0.5rem; color:#0f172a;">TechStore Corporativo</h2>
-        <p style="color:#64748b; margin-bottom:1.5rem;">Acesso ao Módulo de Vendas & Estoque</p>
+<body class="pagina-login">
+    <div class="cartao-login">
+        <h2>TechStore Corporativo</h2>
+        <p>Acesso ao Módulo de Vendas & Estoque</p>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% for cat, msg in messages %}
             {% if not msg.startswith("Bem-vindo(a),") %}
-            <div style="padding:10px; margin-bottom:1rem; border-radius:6px; background:{{ '#fee2e2' if cat=='erro' else '#dcfce7' }}; color:{{ '#991b1b' if cat=='erro' else '#166534' }};">
+            <div class="mensagem-login {{ 'mensagem-erro' if cat == 'erro' else 'mensagem-sucesso' }}">
                 {{ msg }}
             </div>
             {% endif %}
@@ -22,11 +22,12 @@
 
         <form method="POST">
             <label>E-mail Corporativo</label>
-            <input type="email" name="email" required placeholder="operador@techstore.com" style="width:100%; padding:10px; margin:6px 0 14px; border:1px solid #cbd5e1; border-radius:6px;">
+            <input type="email" name="email" required placeholder="operador@techstore">
             <label>Senha</label>
-            <input type="password" name="senha" required placeholder="••••••••" style="width:100%; padding:10px; margin:6px 0 18px; border:1px solid #cbd5e1; border-radius:6px;">
-            <button type="submit" style="width:100%; padding:12px; background:#2563eb; color:#fff; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">Entrar no Sistema</button>
+            <input type="password" name="senha" required placeholder="••••••••">
+            <button type="submit">Entrar no Sistema</button>
         </form>
     </div>
+    <script src="{{ url_for('static', filename='form-validation.js') }}"></script>
 </body>
 </html>

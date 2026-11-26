@@ -15,20 +15,31 @@ def run_migration_and_seed():
     migration_path = PROJECT_DIR / "migration_v2.sql"
     with migration_path.open("r", encoding="utf-8") as migration:
         conn.executescript(migration.read())
+    venda_columns = {
+        row[1] for row in conn.execute("PRAGMA table_info(Vendas)").fetchall()
+    }
+    if "status_pagamento" not in venda_columns:
+        conn.execute(
+            """
+            ALTER TABLE Vendas
+            ADD COLUMN status_pagamento TEXT NOT NULL DEFAULT 'PAGO'
+                CHECK (status_pagamento IN ('PENDENTE', 'PAGO'))
+            """
+        )
 
     try:
         conn.execute("BEGIN IMMEDIATE")
         usuarios = [
             (
                 "Carlos Operador Balcão",
-                "operador@techstore.com",
+                "operador@techstore",
                 generate_password_hash("operador123"),
                 "OPERADOR",
                 "ATIVO",
             ),
             (
                 "Ana Gerente Comercial",
-                "gerente@techstore.com",
+                "gerente@techstore",
                 generate_password_hash("gerente123"),
                 "GERENTE",
                 "ATIVO",
@@ -79,15 +90,16 @@ def run_migration_and_seed():
                 )
                 valor_total = round(sum(float(p[1]) for p in produtos), 2)
                 operador_id = conn.execute(
-                    "SELECT id FROM Usuarios WHERE email = 'operador@techstore.com'"
+                    "SELECT id FROM Usuarios WHERE email = 'operador@techstore'"
                 ).fetchone()[0]
                 venda_id = conn.execute(
                     """
                     INSERT INTO Vendas (
                         numero_pedido, cliente_nome, cliente_documento,
-                        forma_pagamento, valor_total, status_venda, usuario_id
+                        forma_pagamento, valor_total, status_venda,
+                        status_pagamento, usuario_id
                     )
-                    VALUES (?, ?, ?, 'BOLETO_FATURADO', ?, 'CONCLUIDA', ?)
+                    VALUES (?, ?, ?, 'BOLETO_FATURADO', ?, 'CONCLUIDA', 'PENDENTE', ?)
                     """,
                     (
                         numero_pedido,

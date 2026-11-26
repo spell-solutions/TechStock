@@ -56,6 +56,21 @@ class TechStockAppTests(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 302)
 
+    def test_login_shows_required_fields_error_when_credentials_are_missing(self):
+        response = self.client.post(
+            "/login", data={"email": "", "senha": "operador123"}
+        )
+        self.assertIn(
+            "Preencha o e-mail e a senha.", response.get_data(as_text=True)
+        )
+
+        response = self.client.post(
+            "/login", data={"email": "operador@test.local", "senha": ""}
+        )
+        self.assertIn(
+            "Preencha o e-mail e a senha.", response.get_data(as_text=True)
+        )
+
     def connect(self):
         conn = sqlite3.connect(app_module.DB_PATH)
         conn.row_factory = sqlite3.Row
@@ -71,7 +86,7 @@ class TechStockAppTests(unittest.TestCase):
         finally:
             conn.close()
 
-    def test_dashboard_uses_joined_names_and_low_stock_threshold(self):
+    def test_dashboard_low_stock_threshold_and_compact_inventory(self):
         conn = self.connect()
         conn.execute(
             "UPDATE Produtos SET quantidade_estoque = estoque_minimo WHERE sku = 'RAM001'"
@@ -83,9 +98,81 @@ class TechStockAppTests(unittest.TestCase):
         response = self.client.get("/inicio")
         body = response.get_data(as_text=True)
         self.assertEqual(response.status_code, 200)
-        self.assertIn("Tech Distribuidora LTDA", body)
         self.assertIn("Risco de Ruptura / Reposição Necessária", body)
         self.assertIn("Memoria RAM 16GB", body)
+        self.assertNotIn("<th>Fornecedor</th>", body)
+        self.assertNotIn("Tech Distribuidora LTDA", body)
+        self.assertEqual(body.count('class="ativo"'), 1)
+
+    def test_dashboard_groups_inventory_by_category(self):
+        self.login_as("GERENTE")
+        response = self.client.get("/inicio")
+        body = response.get_data(as_text=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(body.count("data-categoria-inventario"), 4)
+        for categoria in ("Hardware", "Software", "Periféricos", "Armazenamento"):
+            self.assertIn(categoria, body)
+
+    def test_manager_dashboard_shows_fourteen_day_sales_chart(self):
+        self.login_as("GERENTE")
+        response = self.client.get("/inicio")
+        body = response.get_data(as_text=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Vendas nos últimos 14 dias", body)
+        self.assertIn('aria-label="Gráfico de faturamento diário dos últimos 14 dias"', body)
+
+    def test_sales_history_shows_styled_open_pdv_button(self):
+        self.login_as("GERENTE")
+        response = self.client.get("/vendas")
+        body = response.get_data(as_text=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(
+            'class="botao-novo botao-abrir-pdv" href="/pdv">+ Abrir PDV</a>',
+            body,
+        )
+        self.assertNotIn('href="/logout"', body)
+
+    def test_manager_can_create_operator_account(self):
+        self.login_as("GERENTE")
+        form_page = self.client.get("/usuarios/novo")
+        self.assertEqual(form_page.status_code, 200)
+        form_html = form_page.get_data(as_text=True)
+        self.assertIn("Cadastrar operador", form_html)
+        self.assertNotIn('class="link-voltar"', form_html)
+        self.assertIn('class="botao-secundario"', form_html)
+        response = self.client.post(
+            "/usuarios/novo",
+            data={
+                "nome": "Operador Adicional",
+                "email": "novo.operador@test.local",
+                "senha": "senha-segura-123",
+                "senha_confirmacao": "senha-segura-123",
+            },
+            follow_redirects=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("cadastrado com sucesso", response.get_data(as_text=True))
+
+        conn = self.connect()
+        try:
+            user = conn.execute(
+                """
+                SELECT nome_completo, perfil_acesso, status
+                FROM Usuarios WHERE email = ?
+                """,
+                ("novo.operador@test.local",),
+            ).fetchone()
+            self.assertEqual(
+                tuple(user), ("Operador Adicional", "OPERADOR", "ATIVO")
+            )
+        finally:
+            conn.close()
+
+    def test_operator_cannot_create_another_user(self):
+        self.login_as("OPERADOR")
+        response = self.client.get("/usuarios/novo", follow_redirects=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Acesso negado", response.get_data(as_text=True))
 
     def test_manager_can_create_product_and_initial_movement(self):
         self.login_as("GERENTE")
@@ -202,6 +289,7 @@ class TechStockAppTests(unittest.TestCase):
         self.assertIn("Faturamento concluído", body)
         self.assertIn("Vendas recentes", body)
         self.assertIn(f"R$ {price:.2f}", body)
+        self.assertEqual(body.count('class="ativo"'), 1)
 
     def test_inventory_movement_rolls_back_insufficient_outflow(self):
         self.login_as("GERENTE")
@@ -300,6 +388,20 @@ class TechStockAppTests(unittest.TestCase):
         finally:
             conn.close()
 
+    def test_pdv_shows_dashboard_button_in_header(self):
+        self.login_as("OPERADOR")
+        html = self.client.get("/pdv").get_data(as_text=True)
+        header_start = html.index("<header")
+        header_end = html.index("</header>", header_start)
+
+        self.assertIn(
+            'class="botao-novo pdv-voltar-painel" href="/inicio"',
+            html[header_start:header_end],
+        )
+        self.assertIn("Voltar ao Painel Inicial", html[header_start:header_end])
+        self.assertNotIn('href="/logout"', html[header_start:header_end])
+        self.assertNotIn("pdv-rodape", html)
+
     def test_checkout_is_atomic_and_aggregates_duplicate_products(self):
         self.login_as("OPERADOR")
         ram_id = self.product_id("RAM001")
@@ -355,6 +457,8 @@ class TechStockAppTests(unittest.TestCase):
         self.assertEqual(receipt.status_code, 200)
         self.assertIn("Componente Físico", receipt_body)
         self.assertIn("Licença Digital Corporativa", receipt_body)
+        self.assertIn("Spell Solutions", receipt_body)
+        self.assertIn("CNPJ fictício: 00.000.000/0000-00", receipt_body)
 
     def test_checkout_insufficient_stock_leaves_no_partial_records(self):
         self.login_as("OPERADOR")
@@ -416,6 +520,124 @@ class TechStockAppTests(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 400)
         self.assertIn("número inteiro", response.get_json()["erro"])
+
+    def test_checkout_rejects_invalid_cpf_and_letters_in_customer_document(self):
+        self.login_as("OPERADOR")
+        product_id = self.product_id("RAM001")
+        for documento in ("123.456.789-00", "abc529.982.247-25"):
+            response = self.client.post(
+                "/pdv/finalizar",
+                json={
+                    "cliente_nome": "Cliente de Teste",
+                    "cliente_documento": documento,
+                    "forma_pagamento": "PIX",
+                    "itens": [{"produto_id": product_id, "quantidade": 1}],
+                },
+            )
+            self.assertEqual(response.status_code, 400)
+            self.assertIn("CPF válido", response.get_json()["erro"])
+
+    def test_boleto_sale_can_be_edited_until_payment_is_confirmed(self):
+        self.login_as("OPERADOR")
+        ram_id = self.product_id("RAM001")
+        ssd_id = self.product_id("SSD001")
+        response = self.client.post(
+            "/pdv/finalizar",
+            json={
+                "cliente_nome": "Cliente Original",
+                "cliente_documento": "12.345.678/0001-00",
+                "forma_pagamento": "BOLETO_FATURADO",
+                "itens": [{"produto_id": ram_id, "quantidade": 2}],
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        venda_id = response.get_json()["venda_id"]
+
+        self.client.get("/logout")
+        self.login_as("GERENTE")
+        edit_page = self.client.get(f"/vendas/{venda_id}/editar")
+        self.assertEqual(edit_page.status_code, 200)
+        invalid_edit = self.client.post(
+            f"/vendas/{venda_id}/editar",
+            json={
+                "cliente_nome": "Não salvar",
+                "forma_pagamento": "BOLETO_FATURADO",
+                "itens": [{"produto_id": ram_id, "quantidade": 1000}],
+            },
+        )
+        self.assertEqual(invalid_edit.status_code, 400)
+        conn = self.connect()
+        try:
+            self.assertEqual(
+                conn.execute(
+                    "SELECT quantidade_estoque FROM Produtos WHERE id = ?",
+                    (ram_id,),
+                ).fetchone()[0],
+                13,
+            )
+            self.assertEqual(
+                conn.execute(
+                    "SELECT cliente_nome FROM Vendas WHERE id = ?", (venda_id,)
+                ).fetchone()[0],
+                "Cliente Original",
+            )
+        finally:
+            conn.close()
+        edited = self.client.post(
+            f"/vendas/{venda_id}/editar",
+            json={
+                "cliente_nome": "Cliente Atualizado",
+                "forma_pagamento": "BOLETO_FATURADO",
+                "itens": [{"produto_id": ssd_id, "quantidade": 1}],
+            },
+        )
+        self.assertEqual(edited.status_code, 200, edited.get_json())
+
+        conn = self.connect()
+        try:
+            venda = conn.execute(
+                """
+                SELECT cliente_nome, valor_total, status_pagamento
+                FROM Vendas WHERE id = ?
+                """,
+                (venda_id,),
+            ).fetchone()
+            itens = conn.execute(
+                "SELECT produto_id, quantidade_vendida FROM Itens_Venda WHERE venda_id = ?",
+                (venda_id,),
+            ).fetchall()
+            stocks = {
+                row["id"]: row["quantidade_estoque"]
+                for row in conn.execute(
+                    "SELECT id, quantidade_estoque FROM Produtos WHERE id IN (?, ?)",
+                    (ram_id, ssd_id),
+                )
+            }
+            self.assertEqual(venda["cliente_nome"], "Cliente Atualizado")
+            self.assertEqual(venda["valor_total"], 320.0)
+            self.assertEqual(venda["status_pagamento"], "PENDENTE")
+            self.assertEqual(
+                [(row["produto_id"], row["quantidade_vendida"]) for row in itens],
+                [(ssd_id, 1)],
+            )
+            self.assertEqual(stocks, {ram_id: 15, ssd_id: 7})
+        finally:
+            conn.close()
+
+        paid = self.client.post(
+            f"/vendas/{venda_id}/pagamento", follow_redirects=True
+        )
+        self.assertEqual(paid.status_code, 200)
+        rejected = self.client.post(
+            f"/vendas/{venda_id}/editar",
+            json={
+                "cliente_nome": "Não pode alterar",
+                "forma_pagamento": "BOLETO_FATURADO",
+                "itens": [{"produto_id": ssd_id, "quantidade": 1}],
+            },
+        )
+        self.assertEqual(rejected.status_code, 400)
+        self.assertIn("já foi paga", rejected.get_json()["erro"])
 
     def test_manager_can_cancel_sale_and_restore_inventory(self):
         self.login_as("OPERADOR")

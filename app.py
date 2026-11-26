@@ -1,6 +1,7 @@
 import hashlib
 import hmac
 import os
+import re
 import sqlite3
 import uuid
 from datetime import datetime, timedelta
@@ -8,7 +9,7 @@ from decimal import Decimal, InvalidOperation
 from functools import wraps
 from pathlib import Path
 from flask import Flask, abort, flash, get_flashed_messages, jsonify, redirect, render_template, request, session, url_for
-from werkzeug.security import check_password_hash
+from werkzeug.security import check_password_hash, generate_password_hash
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get(
@@ -16,6 +17,7 @@ app.config["SECRET_KEY"] = os.environ.get(
 )
 app.permanent_session_lifetime = timedelta(days=7)
 DB_PATH = str(Path(__file__).resolve().with_name("techstock.db"))
+SELLER_CNPJ = os.environ.get("TECHSTOCK_CNPJ", "00.000.000/0000-00")
 
 
 def get_db(autocommit_mode=False):
@@ -75,6 +77,38 @@ def parse_price(value):
     return float(price)
 
 
+def valid_cpf(value):
+    if not isinstance(value, str) or not re.fullmatch(
+        r"(?:\d{11}|\d{3}\.\d{3}\.\d{3}-\d{2})", value.strip()
+    ):
+        return False
+    digits = re.sub(r"\D", "", value)
+    if len(set(digits)) == 1:
+        return False
+    for length in (9, 10):
+        total = sum(int(digits[index]) * (length + 1 - index) for index in range(length))
+        check_digit = (total * 10) % 11
+        if check_digit == 10:
+            check_digit = 0
+        if check_digit != int(digits[length]):
+            return False
+    return True
+
+
+def valid_customer_document(value):
+    if not isinstance(value, str):
+        return False
+    document = value.strip()
+    if re.fullmatch(r"\d{11}", document) or re.fullmatch(
+        r"\d{3}\.\d{3}\.\d{3}-\d{2}", document
+    ):
+        return valid_cpf(document)
+    return bool(
+        re.fullmatch(r"\d{14}", document)
+        or re.fullmatch(r"\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}", document)
+    )
+
+
 def product_form_choices(conn):
     categorias = conn.execute("SELECT id, nome FROM categorias ORDER BY nome").fetchall()
     fornecedores = conn.execute(
@@ -126,21 +160,24 @@ def login():
         email = request.form.get("email", "").strip().lower()
         senha = request.form.get("senha", "")
 
-        conn = get_db()
-        user = conn.execute(
-            "SELECT * FROM Usuarios WHERE email = ? AND status = 'ATIVO'", (email,)
-        ).fetchone()
-        conn.close()
-
-        if user and check_password_hash(user["senha_hash"], senha):
-            session.permanent = True
-            session["usuario_id"] = user["id"]
-            session["usuario_nome"] = user["nome_completo"]
-            session["perfil_acesso"] = user["perfil_acesso"]
-            get_flashed_messages()
-            return redirect(url_for("inicio"))
+        if not email or not senha:
+            flash("Preencha o e-mail e a senha.", "erro")
         else:
-            flash("Credenciais inválidas ou usuário inativo.", "erro")
+            conn = get_db()
+            user = conn.execute(
+                "SELECT * FROM Usuarios WHERE email = ? AND status = 'ATIVO'", (email,)
+            ).fetchone()
+            conn.close()
+
+            if user and check_password_hash(user["senha_hash"], senha):
+                session.permanent = True
+                session["usuario_id"] = user["id"]
+                session["usuario_nome"] = user["nome_completo"]
+                session["perfil_acesso"] = user["perfil_acesso"]
+                get_flashed_messages()
+                return redirect(url_for("inicio"))
+            else:
+                flash("Credenciais inválidas ou usuário inativo.", "erro")
 
     return render_template("login.html")
 
@@ -194,18 +231,113 @@ def inicio():
             ORDER BY quantidade_estoque, nome
             """
         ).fetchall()
+        vendas_diarias = []
+        if session.get("perfil_acesso") == "GERENTE":
+            desde = (datetime.now().date() - timedelta(days=13)).isoformat()
+            totais_por_dia = {
+                row["dia"]: row["total"]
+                for row in conn.execute(
+                    """
+                    SELECT date(data_hora) AS dia, SUM(valor_total) AS total
+                    FROM Vendas
+                    WHERE status_venda = 'CONCLUIDA'
+                      AND date(data_hora) >= ?
+                    GROUP BY date(data_hora)
+                    """,
+                    (desde,),
+                ).fetchall()
+            }
+            dias = [
+                (datetime.now().date() - timedelta(days=offset))
+                for offset in range(13, -1, -1)
+            ]
+            maior_total = max(
+                (float(totais_por_dia.get(dia.isoformat(), 0) or 0) for dia in dias),
+                default=0,
+            )
+            vendas_diarias = [
+                {
+                    "data": dia.strftime("%d/%m"),
+                    "total": float(totais_por_dia.get(dia.isoformat(), 0) or 0),
+                    "altura": (
+                        max(4, round(float(totais_por_dia.get(dia.isoformat(), 0) or 0) / maior_total * 100))
+                        if maior_total
+                        else 0
+                    ),
+                }
+                for dia in dias
+            ]
     finally:
         conn.close()
+
+    produtos_por_categoria = {}
+    for produto in produtos:
+        produtos_por_categoria.setdefault(produto["categoria"], []).append(produto)
+
+    ordem_categorias = {
+        "Hardware": 0,
+        "Software": 1,
+        "Periféricos": 2,
+        "Armazenamento": 3,
+    }
+    produtos_por_categoria = [
+        {"nome": categoria, "produtos": itens}
+        for categoria, itens in sorted(
+            produtos_por_categoria.items(),
+            key=lambda item: (
+                ordem_categorias.get(item[0], len(ordem_categorias)),
+                item[0].casefold(),
+            ),
+        )
+    ]
 
     return render_template(
         "index.html",
         produtos=produtos,
+        produtos_por_categoria=produtos_por_categoria,
         busca=busca,
         total_produtos=total_produtos,
         total_unidades=total_unidades,
         total_categorias=total_categorias,
         produtos_baixos=produtos_baixos,
+        vendas_diarias=vendas_diarias,
     )
+
+
+@app.route("/usuarios/novo", methods=["GET", "POST"])
+@gerente_required
+def novo_usuario():
+    if request.method == "POST":
+        nome = request.form.get("nome", "").strip()
+        email = request.form.get("email", "").strip().lower()
+        senha = request.form.get("senha", "")
+        senha_confirmacao = request.form.get("senha_confirmacao", "")
+        if not nome or not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
+            flash("Informe um nome e um e-mail válido.", "erro")
+        elif len(senha) < 8:
+            flash("A senha deve ter pelo menos 8 caracteres.", "erro")
+        elif senha != senha_confirmacao:
+            flash("As senhas não conferem.", "erro")
+        else:
+            conn = get_db()
+            try:
+                conn.execute(
+                    """
+                    INSERT INTO Usuarios
+                        (nome_completo, email, senha_hash, perfil_acesso, status)
+                    VALUES (?, ?, ?, 'OPERADOR', 'ATIVO')
+                    """,
+                    (nome, email, generate_password_hash(senha)),
+                )
+                conn.commit()
+            except sqlite3.IntegrityError:
+                flash("Já existe um usuário com esse e-mail.", "erro")
+            else:
+                flash(f"Operador {nome} cadastrado com sucesso.", "sucesso")
+                return redirect(url_for("inicio"))
+            finally:
+                conn.close()
+    return render_template("usuario_form.html")
 
 
 @app.route("/produtos/novo", methods=["GET", "POST"])
@@ -576,6 +708,8 @@ def finalizar_venda():
 
     if not cliente_nome or not cliente_documento or forma_pagamento not in ("PIX", "CARTAO_CREDITO", "BOLETO_FATURADO"):
         return jsonify({"sucesso": False, "erro": "Preencha nome do cliente, CPF/CNPJ e forma de pagamento válida."}), 400
+    if not valid_customer_document(cliente_documento):
+        return jsonify({"sucesso": False, "erro": "Informe um CPF válido ou CNPJ com 14 dígitos, sem letras."}), 400
 
     if not isinstance(itens, list) or not itens:
         return jsonify({"sucesso": False, "erro": "O carrinho está vazio. Adicione ao menos um item."}), 400
@@ -629,8 +763,10 @@ def finalizar_venda():
         numero_pedido = f"PED-{datetime.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
         cursor = conn.execute(
             """
-            INSERT INTO Vendas (numero_pedido, data_hora, cliente_nome, cliente_documento, forma_pagamento, valor_total, status_venda, usuario_id)
-            VALUES (?, ?, ?, ?, ?, ?, 'CONCLUIDA', ?)
+            INSERT INTO Vendas
+                (numero_pedido, data_hora, cliente_nome, cliente_documento,
+                 forma_pagamento, valor_total, status_venda, status_pagamento, usuario_id)
+            VALUES (?, ?, ?, ?, ?, ?, 'CONCLUIDA', ?, ?)
             """,
             (
                 numero_pedido,
@@ -639,6 +775,7 @@ def finalizar_venda():
                 cliente_documento,
                 forma_pagamento,
                 float(valor_total),
+                "PENDENTE" if forma_pagamento == "BOLETO_FATURADO" else "PAGO",
                 session["usuario_id"],
             ),
         )
@@ -748,7 +885,13 @@ def recibo_venda(venda_id):
         hashlib.sha256,
     ).hexdigest()[:24].upper()
 
-    return render_template("recibo.html", venda=venda, itens=itens, chave_autenticidade=chave_autenticidade)
+    return render_template(
+        "recibo.html",
+        venda=venda,
+        itens=itens,
+        chave_autenticidade=chave_autenticidade,
+        seller_cnpj=SELLER_CNPJ,
+    )
 
 
 # --- HISTÓRICO E CANCELAMENTO DE VENDA (APENAS GERENTE) ---
@@ -766,6 +909,236 @@ def listar_vendas():
     ).fetchall()
     conn.close()
     return render_template("vendas.html", vendas=vendas)
+
+
+@app.route("/vendas/<int:venda_id>/editar", methods=["GET", "POST"])
+@gerente_required
+def editar_venda(venda_id):
+    if request.method == "GET":
+        conn = get_db()
+        try:
+            venda = conn.execute(
+                "SELECT * FROM Vendas WHERE id = ?", (venda_id,)
+            ).fetchone()
+            if not venda:
+                abort(404)
+            if venda["status_pagamento"] != "PENDENTE" or venda["status_venda"] != "CONCLUIDA":
+                flash("Somente vendas ainda não pagas podem ser editadas.", "erro")
+                return redirect(url_for("listar_vendas"))
+            produtos = conn.execute(
+                """
+                SELECT id, nome, preco_venda, quantidade_estoque
+                FROM Produtos WHERE ativo = 1 ORDER BY nome
+                """
+            ).fetchall()
+            itens = conn.execute(
+                """
+                SELECT produto_id, quantidade_vendida
+                FROM Itens_Venda WHERE venda_id = ?
+                """,
+                (venda_id,),
+            ).fetchall()
+        finally:
+            conn.close()
+        return render_template(
+            "editar_venda.html", venda=venda, produtos=produtos, itens=itens
+        )
+
+    dados = request.get_json(silent=True)
+    if not isinstance(dados, dict):
+        return jsonify({"sucesso": False, "erro": "Dados da edição inválidos."}), 400
+    cliente_nome = dados.get("cliente_nome")
+    forma_pagamento = dados.get("forma_pagamento")
+    itens_enviados = dados.get("itens")
+    if not isinstance(cliente_nome, str) or not cliente_nome.strip():
+        return jsonify({"sucesso": False, "erro": "Informe o nome do cliente."}), 400
+    if forma_pagamento not in ("PIX", "CARTAO_CREDITO", "BOLETO_FATURADO"):
+        return jsonify({"sucesso": False, "erro": "Forma de pagamento inválida."}), 400
+    if not isinstance(itens_enviados, list) or not itens_enviados:
+        return jsonify({"sucesso": False, "erro": "A venda precisa ter ao menos um produto."}), 400
+
+    quantidades = {}
+    try:
+        for item in itens_enviados:
+            if not isinstance(item, dict):
+                raise ValueError("Há um item inválido na venda.")
+            produto_id = parse_integer(item.get("produto_id"), "Produto", 1)
+            quantidade = parse_integer(item.get("quantidade"), "Quantidade", 1)
+            quantidades[produto_id] = quantidades.get(produto_id, 0) + quantidade
+    except ValueError as error:
+        return jsonify({"sucesso": False, "erro": str(error)}), 400
+
+    conn = get_db(autocommit_mode=True)
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        venda = conn.execute(
+            "SELECT * FROM Vendas WHERE id = ?", (venda_id,)
+        ).fetchone()
+        if (
+            not venda
+            or venda["status_venda"] != "CONCLUIDA"
+            or venda["status_pagamento"] != "PENDENTE"
+        ):
+            raise ValueError("Esta venda já foi paga ou não pode ser editada.")
+        itens_anteriores = conn.execute(
+            "SELECT * FROM Itens_Venda WHERE venda_id = ?", (venda_id,)
+        ).fetchall()
+        for item in itens_anteriores:
+            conn.execute(
+                "UPDATE Produtos SET quantidade_estoque = quantidade_estoque + ? WHERE id = ?",
+                (item["quantidade_vendida"], item["produto_id"]),
+            )
+            conn.execute(
+                """
+                INSERT INTO Movimentacoes
+                    (produto_id, tipo_operacao, quantidade, observacao)
+                VALUES (?, 'Entrada', ?, ?)
+                """,
+                (
+                    item["produto_id"],
+                    item["quantidade_vendida"],
+                    f"Devolução por edição da venda {venda['numero_pedido']}",
+                ),
+            )
+
+        itens_novos = []
+        valor_total = Decimal("0.00")
+        for produto_id, quantidade in quantidades.items():
+            produto = conn.execute(
+                """
+                SELECT id, nome, preco_venda, quantidade_estoque
+                FROM Produtos WHERE id = ? AND ativo = 1
+                """,
+                (produto_id,),
+            ).fetchone()
+            if not produto:
+                raise ValueError("Um produto selecionado não existe ou está desativado.")
+            if produto["quantidade_estoque"] < quantidade:
+                raise ValueError(
+                    f"Estoque insuficiente para '{produto['nome']}'. "
+                    "Nenhuma alteração foi salva."
+                )
+            preco = Decimal(str(produto["preco_venda"])).quantize(Decimal("0.01"))
+            subtotal = (preco * quantidade).quantize(Decimal("0.01"))
+            valor_total += subtotal
+            itens_novos.append((produto, quantidade, float(preco), float(subtotal)))
+
+        conn.execute("DELETE FROM Itens_Venda WHERE venda_id = ?", (venda_id,))
+        for produto, quantidade, preco, subtotal in itens_novos:
+            atualizacao = conn.execute(
+                """
+                UPDATE Produtos SET quantidade_estoque = quantidade_estoque - ?
+                WHERE id = ? AND quantidade_estoque >= ?
+                """,
+                (quantidade, produto["id"], quantidade),
+            )
+            if atualizacao.rowcount != 1:
+                raise ValueError(
+                    f"Estoque insuficiente para '{produto['nome']}'. "
+                    "Nenhuma alteração foi salva."
+                )
+            conn.execute(
+                """
+                INSERT INTO Itens_Venda
+                    (venda_id, produto_id, quantidade_vendida,
+                     preco_unitario_praticado, subtotal_item)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (venda_id, produto["id"], quantidade, preco, subtotal),
+            )
+            conn.execute(
+                """
+                INSERT INTO Movimentacoes
+                    (produto_id, tipo_operacao, quantidade, observacao)
+                VALUES (?, 'Saída', ?, ?)
+                """,
+                (
+                    produto["id"],
+                    quantidade,
+                    f"Nova baixa por edição da venda {venda['numero_pedido']}",
+                ),
+            )
+
+        pagamento_status = (
+            "PENDENTE" if forma_pagamento == "BOLETO_FATURADO" else "PAGO"
+        )
+        conn.execute(
+            """
+            UPDATE Vendas
+            SET cliente_nome = ?, forma_pagamento = ?, valor_total = ?,
+                status_pagamento = ?
+            WHERE id = ?
+            """,
+            (
+                cliente_nome.strip(),
+                forma_pagamento,
+                float(valor_total),
+                pagamento_status,
+                venda_id,
+            ),
+        )
+        conn.execute("COMMIT")
+        return jsonify(
+            {
+                "sucesso": True,
+                "redirect_url": url_for("listar_vendas"),
+            }
+        )
+    except ValueError as error:
+        if conn.in_transaction:
+            conn.rollback()
+        return jsonify({"sucesso": False, "erro": str(error)}), 400
+    except sqlite3.Error:
+        if conn.in_transaction:
+            conn.rollback()
+        app.logger.exception("Falha ao editar venda %s", venda_id)
+        return jsonify(
+            {"sucesso": False, "erro": "Não foi possível salvar as alterações da venda."}
+        ), 500
+    finally:
+        conn.close()
+
+
+@app.route("/vendas/<int:venda_id>/pagamento", methods=["POST"])
+@gerente_required
+def confirmar_pagamento(venda_id):
+    conn = get_db(autocommit_mode=True)
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        venda = conn.execute(
+            "SELECT status_venda, status_pagamento FROM Vendas WHERE id = ?",
+            (venda_id,),
+        ).fetchone()
+        if (
+            not venda
+            or venda["status_venda"] != "CONCLUIDA"
+            or venda["status_pagamento"] != "PENDENTE"
+        ):
+            conn.rollback()
+            flash("A venda não está pendente de pagamento.", "erro")
+        else:
+            atualizacao = conn.execute(
+                """
+                UPDATE Vendas SET status_pagamento = 'PAGO'
+                WHERE id = ? AND status_venda = 'CONCLUIDA'
+                  AND status_pagamento = 'PENDENTE'
+                """,
+                (venda_id,),
+            )
+            if atualizacao.rowcount != 1:
+                conn.rollback()
+                flash("A venda não está pendente de pagamento.", "erro")
+                return redirect(url_for("listar_vendas"))
+            conn.commit()
+            flash("Pagamento confirmado. A venda não poderá mais ser editada.", "sucesso")
+    except sqlite3.Error:
+        if conn.in_transaction:
+            conn.rollback()
+        app.logger.exception("Falha ao confirmar pagamento da venda %s", venda_id)
+        flash("Não foi possível confirmar o pagamento.", "erro")
+    finally:
+        conn.close()
+    return redirect(url_for("listar_vendas"))
 
 
 @app.route("/vendas/<int:venda_id>/cancelar", methods=["POST"])

@@ -12,25 +12,7 @@
 
 <body>
 
-    <aside class="sidebar">
-        <h2>TechStock</h2>
-        <p class="subtitulo">MANAGER</p>
-
-        <nav>
-            <a href="{{ url_for('inicio') }}" class="ativo">Painel inicial</a>
-            <a href="{{ url_for('pdv') }}">Abrir PDV</a>
-            <a href="{{ url_for('movimentacoes') }}">Movimentações</a>
-            {% if session.perfil_acesso == 'GERENTE' %}
-                <a href="{{ url_for('relatorios') }}">Relatórios</a>
-                <a href="{{ url_for('listar_vendas') }}">Histórico de vendas</a>
-            {% endif %}
-            <a href="{{ url_for('logout') }}">Sair ({{ session.usuario_nome }})</a>
-        </nav>
-
-        <div class="rodape-menu">
-            Sistema de Gestão de Inventário
-        </div>
-    </aside>
+    {% include "_sidebar.html" %}
 
     <main class="conteudo">
 
@@ -44,7 +26,7 @@
 
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% for categoria, mensagem in messages %}
-                <div class="mensagem" style="background:{{ '#dcfce7' if categoria == 'sucesso' else '#fee2e2' }}; color:{{ '#166534' if categoria == 'sucesso' else '#b91c1c' }};">
+                <div class="mensagem {{ 'mensagem-sucesso' if categoria == 'sucesso' else 'mensagem-erro' }}">
                     {{ mensagem }}
                 </div>
             {% endfor %}
@@ -78,6 +60,29 @@
 
         </section>
 
+        {% if session.perfil_acesso == 'GERENTE' %}
+        <section class="painel-vendas">
+            <div class="cabecalho-painel-vendas">
+                <div>
+                    <h2>Vendas nos últimos 14 dias</h2>
+                    <p>Faturamento diário das vendas concluídas</p>
+                </div>
+                <strong>R$ {{ "%.2f"|format(vendas_diarias|sum(attribute='total')) }}</strong>
+            </div>
+            <div class="grafico-vendas" role="img" aria-label="Gráfico de faturamento diário dos últimos 14 dias">
+                {% for dia in vendas_diarias %}
+                <div class="grafico-dia" title="{{ dia.data }}: R$ {{ "%.2f"|format(dia.total) }}">
+                    <span class="grafico-valor">{% if dia.total %}{{ "%.0f"|format(dia.total) }}{% endif %}</span>
+                    <div class="grafico-coluna-wrap">
+                        <div class="grafico-coluna" style="height: {{ dia.altura }}%;"></div>
+                    </div>
+                    <span class="grafico-data">{{ dia.data }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
         <section class="painel-alertas" id="alertas">
             <h2>Alertas de reposição</h2>
 
@@ -98,33 +103,26 @@
         </section>
 
         <section class="painel-produtos" id="produtos">
-
             <div class="titulo-tabela">
                 <div>
                     <h2>Inventário de produtos</h2>
-                    <p>Lista completa dos produtos cadastrados.</p>
+                    <p>Pesquise ou abra uma categoria para ver os produtos.</p>
                 </div>
-<form method="GET" action="{{ url_for('inicio') }}"
-      style="display: flex; align-items: center; gap: 8px;">
+                <form id="busca-inventario" class="busca-inventario" method="GET" action="{{ url_for('inicio') }}" role="search">
+                    <input
+                        id="busca-inventario-input"
+                        type="search"
+                        name="busca"
+                        placeholder="Pesquisar por SKU, nome ou fabricante..."
+                        value="{{ busca }}"
+                        aria-label="Pesquisar produtos do inventário"
+                        aria-controls="categorias-inventario"
+                        autocomplete="off"
+                    >
+                    <button type="submit" class="botao-novo">Pesquisar</button>
+                    <a href="{{ url_for('inicio') }}" class="botao-limpar" data-limpar-busca>Limpar</a>
+                </form>
 
-    <input
-        type="text"
-        name="busca"
-        placeholder="Pesquisar por SKU, nome ou fabricante..."
-        value="{{ busca }}"
-        style="padding: 10px; border: 1px solid #ccc; border-radius: 6px;"
-    >
-
-    <button type="submit" class="botao-novo">
-        Pesquisar
-    </button>
-
-    <a href="{{ url_for('inicio') }}" class="botao-limpar">
-        Limpar
-    </a>
-
-</form>
-                
                 {% if session.perfil_acesso == 'GERENTE' %}
                     <a href="{{ url_for('novo_produto') }}" class="botao-novo">
                         + Novo produto
@@ -136,77 +134,66 @@
                 </span>
             </div>
 
-            <div class="tabela-responsiva">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>SKU</th>
-                            <th>Produto</th>
-                            <th>Fabricante</th>
-                            <th>Categoria</th>
-                            <th>Fornecedor</th>
-                            <th>Preço</th>
-                            <th>Localização / Licença</th>
-                            <th>Estoque</th>
-                            <th>Situação</th>
-                            {% if session.perfil_acesso == 'GERENTE' %}
-                                <th>Ações</th>
-                            {% endif %}
-                        </tr>
-                    </thead>
-
-                    <tbody>
-                        {% for produto in produtos %}
-                        <tr>
-                            <td>{{ produto.sku }}</td>
-                            <td><strong>{{ produto.nome }}</strong></td>
-                            <td>{{ produto.fabricante }}</td>
-                            <td>{{ produto.categoria }}</td>
-                            <td>{{ produto.fornecedor }}</td>
-                            <td>R$ {{ "%.2f"|format(produto.preco_venda) }}</td>
-                            <td>
-                                {{ produto.localizacao or "-" }}
-                                {% if produto.modalidade_licenca %}
-                                    <br><small>{{ produto.modalidade_licenca }}</small>
-                                {% endif %}
-                            </td>
-                            <td>{{ produto.quantidade_estoque }}</td>
-
-                            <td>
-                                {% if produto.quantidade_estoque <= produto.estoque_minimo %}
-                                    <span class="badge-perigo">Estoque baixo</span>
-                                {% else %}
-                                    <span class="badge-normal">Normal</span>
-                                {% endif %}
-                            </td>
-                            {% if session.perfil_acesso == 'GERENTE' %}
-                                <td>
-                                    <a href="{{ url_for('editar_produto', produto_id=produto.id) }}"
-                                       class="botao-novo"
-                                       style="display: inline-block; margin-right: 5px;">
-                                        Editar
-                                    </a>
-                                    <form method="POST"
-                                          action="{{ url_for('desativar_produto', produto_id=produto.id) }}"
-                                          onsubmit="return confirm('Deseja realmente desativar este produto?');"
-                                          style="display: inline;">
-                                        <button type="submit">Desativar</button>
-                                    </form>
-                                </td>
-                            {% endif %}
-
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="{{ 10 if session.perfil_acesso == 'GERENTE' else 9 }}">
-                                Nenhum produto cadastrado.
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+            <div class="categorias-inventario" id="categorias-inventario">
+                {% for grupo in produtos_por_categoria %}
+                <details class="categoria-inventario" data-categoria-inventario>
+                    <summary class="categoria-resumo">
+                        <span>{{ grupo.nome }}</span>
+                        <span class="categoria-contagem" data-contagem-categoria>{{ grupo.produtos|length }} produtos</span>
+                    </summary>
+                    <div class="tabela-responsiva">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>SKU</th>
+                                    <th>Produto</th>
+                                    <th>Categoria</th>
+                                    <th>Preço</th>
+                                    <th>Estoque</th>
+                                    <th>Situação</th>
+                                    {% if session.perfil_acesso == 'GERENTE' %}
+                                        <th>Ações</th>
+                                    {% endif %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for produto in grupo.produtos %}
+                                <tr data-produto-inventario data-busca="{{ produto.sku }} {{ produto.nome }} {{ produto.fabricante }} {{ produto.categoria }}">
+                                    <td>{{ produto.sku }}</td>
+                                    <td><strong>{{ produto.nome }}</strong></td>
+                                    <td>{{ produto.categoria }}</td>
+                                    <td>R$ {{ "%.2f"|format(produto.preco_venda) }}</td>
+                                    <td>{{ produto.quantidade_estoque }}</td>
+                                    <td>
+                                        {% if produto.quantidade_estoque <= produto.estoque_minimo %}
+                                            <span class="badge-perigo">Estoque baixo</span>
+                                        {% else %}
+                                            <span class="badge-normal">Normal</span>
+                                        {% endif %}
+                                    </td>
+                                    {% if session.perfil_acesso == 'GERENTE' %}
+                                        <td class="acoes-produto">
+                                            <a href="{{ url_for('editar_produto', produto_id=produto.id) }}"
+                                               class="botao-acao botao-editar">Editar</a>
+                                            <form method="POST"
+                                                  action="{{ url_for('desativar_produto', produto_id=produto.id) }}"
+                                                  onsubmit="return confirm('Deseja realmente desativar este produto?');">
+                                                <button type="submit" class="botao-acao botao-desativar">Desativar</button>
+                                            </form>
+                                        </td>
+                                    {% endif %}
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </details>
+                {% endfor %}
             </div>
 
+            <p class="inventario-sem-resultados" data-inventario-vazio role="status" {% if produtos %}hidden{% endif %}>
+                Nenhum produto encontrado.
+            </p>
         </section>
 
         <footer>
@@ -215,5 +202,7 @@
 
     </main>
 
+    <script src="{{ url_for('static', filename='form-validation.js') }}"></script>
+    <script src="{{ url_for('static', filename='inventory-search.js') }}"></script>
 </body>
 </html>
